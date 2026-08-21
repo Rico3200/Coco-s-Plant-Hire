@@ -22,7 +22,7 @@ button{border:0;border-radius:12px;padding:13px 14px;font-size:15px;font-weight:
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 3px;border-bottom:1px solid #e5e7eb;text-align:left}td:last-child,th:last-child{text-align:right}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:8px 3px calc(8px + env(safe-area-inset-bottom));z-index:30}
 nav button{background:none;color:#2563eb;padding:5px;font-size:11px}.seg{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.seg button{white-space:nowrap;background:#e2e8f0}.seg .on{background:#111827;color:#fff}
-.notice{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;padding:11px;border-radius:12px;font-size:13px}.receipt{width:100%;border-radius:12px;margin-top:10px}.hidden{display:none!important}
+.notice{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;padding:11px;border-radius:12px;font-size:13px}.receipt{width:100%;border-radius:12px;margin-top:10px}.partcard{display:grid;grid-template-columns:86px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #e5e7eb}.partcard:last-child{border-bottom:0}.partthumb{width:86px;height:86px;object-fit:cover;border-radius:12px;background:#e5e7eb}.hidden{display:none!important}
 .invoice{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0}.invoice strong{font-size:16px}.right{text-align:right}.itemrow{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:7px;align-items:end;margin-bottom:8px}.itemrow input{margin:0}.itemrow button{padding:11px 12px;background:#fee2e2;color:#991b1b}@media(max-width:620px){.itemrow{grid-template-columns:1fr 1fr}.itemrow .part{grid-column:1/-1}.itemrow button{width:100%}}
 @media print{header,nav,.no-print{display:none!important}body{padding:0;background:white}.wrap{max-width:none;padding:0}.screen{display:none!important}.screen.printable{display:block!important}.card{box-shadow:none;border:1px solid #ddd}}
 </style>
@@ -100,6 +100,40 @@ window.COCOS_BUSINESS = {
 <button class="primary full" onclick="createInvoice()">Create Invoice</button></div>
 <div id="invoiceList"></div></section>
 
+
+<section id="quotes" class="screen"><h2>Quotes</h2>
+<div class="card no-print">
+<h3>Create quote</h3>
+<label>Customer</label><select id="qCustomerSelect" onchange="loadCustomerIntoQuote()"><option value="">Choose saved customer</option></select>
+<label>Customer name</label><input id="qCustomer">
+<div class="row"><div><label>Customer VAT number</label><input id="qCustomerVat"></div><div><label>Customer address</label><input id="qCustomerAddress"></div></div>
+<div class="row"><div><label>Quote date</label><input id="qDate" type="date"></div><div><label>Valid until</label><input id="qValid" type="date"></div></div>
+<label>Quote items</label><div id="qItems"></div>
+<button class="soft full" type="button" onclick="addQuoteItem()">＋ Add line item</button>
+<div class="row"><div><label>VAT</label><select id="qVat"><option value="15">15%</option><option value="0">0%</option></select></div><div><label>Notes</label><input id="qNotes" placeholder="Optional quote note"></div></div>
+<button class="primary full" onclick="createQuote()">Create Quote</button>
+</div>
+<div id="quoteList"></div>
+</section>
+
+
+<section id="parts" class="screen"><h2>Part List</h2>
+<div class="card">
+<h3>Add / edit part</h3>
+<input id="partId" type="hidden">
+<label>Part name</label><input id="partName" placeholder="e.g. Planter bracket">
+<div class="row"><div><label>Part code / SKU</label><input id="partCode" placeholder="Optional"></div><div><label>Unit price excl. VAT</label><input id="partPrice" type="number" step="0.01"></div></div>
+<label>Description</label><textarea id="partDesc" placeholder="Optional notes / dimensions"></textarea>
+<label>Part photo</label><input id="partPhoto" type="file" accept="image/*" capture="environment">
+<img id="partPreview" class="receipt hidden">
+<div class="actions"><button class="primary" onclick="savePart()">Save Part</button><button class="soft" onclick="clearPartForm()">Clear</button></div>
+</div>
+<div class="card">
+<label>Search parts</label><input id="partSearch" placeholder="Search by name or code" oninput="renderParts()">
+<div id="partList"></div>
+</div>
+</section>
+
 <section id="reports" class="screen printable"><h2>Reports</h2>
 <div class="no-print"><label>Financial year</label><select id="rYear" onchange="renderReports()"></select>
 <div class="seg"><button class="on" onclick="report='tax';seg(this);renderReports()">VAT & Tax</button><button onclick="report='areas';seg(this);renderReports()">Business Areas</button><button onclick="report='out';seg(this);renderReports()">Outstanding</button></div></div>
@@ -129,24 +163,25 @@ window.COCOS_BUSINESS = {
 <div class="notice">Tax figures are planning estimates, not a SARS return. VAT claims depend on valid tax invoices and the nature of the expense.</div></section>
 
 </div>
-<nav><button onclick="show('home')">🏠<br>Home</button><button onclick="openEntry('income')">➕<br>Add</button><button onclick="show('machines')">🚜<br>Machines</button><button onclick="show('records')">📋<br>Records</button><button onclick="show('invoices')">🧾<br>Invoices</button><button onclick="show('reports')">📊<br>Reports</button><button onclick="show('more')">⚙️<br>More</button></nav>
+<nav><button onclick="show('home')">🏠<br>Home</button><button onclick="openEntry('income')">➕<br>Add</button><button onclick="show('machines')">🚜<br>Machines</button><button onclick="show('records')">📋<br>Records</button><button onclick="show('invoices')">🧾<br>Invoices</button><button onclick="show('quotes')">📝<br>Quotes</button><button onclick="show('parts')">📦<br>Parts</button><button onclick="show('reports')">📊<br>Reports</button><button onclick="show('more')">⚙️<br>More</button></nav>
 
 <script>
-const V=.15,MT='cocosV3Tx',MM='cocosMachines',MS='cocosSettings',MI='cocosInvoices',MC='cocosCustomers',MB='cocosBusinessSettings';
-let tx=JSON.parse(localStorage.getItem(MT)||'null'),machines=JSON.parse(localStorage.getItem(MM)||'["Machine 1","Machine 2","Machine 3"]'),settings=JSON.parse(localStorage.getItem(MS)||'{"age":"u65","other":0}'),invoices=JSON.parse(localStorage.getItem(MI)||'[]'),customers=JSON.parse(localStorage.getItem(MC)||'[]'),report='tax';
+const V=.15,MT='cocosV3Tx',MM='cocosMachines',MS='cocosSettings',MI='cocosInvoices',MC='cocosCustomers',MB='cocosBusinessSettings',MQ='cocosQuotes',MP='cocosParts';
+let tx=JSON.parse(localStorage.getItem(MT)||'null'),machines=JSON.parse(localStorage.getItem(MM)||'["Machine 1","Machine 2","Machine 3"]'),settings=JSON.parse(localStorage.getItem(MS)||'{"age":"u65","other":0}'),invoices=JSON.parse(localStorage.getItem(MI)||'[]'),customers=JSON.parse(localStorage.getItem(MC)||'[]'),quotes=JSON.parse(localStorage.getItem(MQ)||'[]'),partsList=JSON.parse(localStorage.getItem(MP)||'[]'),report='tax';
 let businessSettings=JSON.parse(localStorage.getItem(MB)||'null')||Object.assign({},window.COCOS_BUSINESS,{invoicePrefix:'CPH',nextInvoice:1});
 window.COCOS_BUSINESS=businessSettings;
 if(!tx){tx=JSON.parse(localStorage.getItem('cocosV2Tx')||'null')||JSON.parse(localStorage.getItem('cocosTx')||'[]').map(x=>({id:x.id||Date.now()+Math.random(),type:x.type,date:x.date,party:'',desc:x.desc,area:x.cat||'Other',machine:'',cat:x.cat||'Other',ref:'',amount:+x.amount||0,vat:'inc',claim:x.type==='expense',paid:'paid',notes:'',photo:''}))}
 const incCats=['Plant Hire Income','Laser Cutting Income','Agricultural Parts Sales','Other Income'],expCats=['Fuel','Repairs & Maintenance','Plant & Equipment','Materials — Laser Cutting','Materials — Agricultural Parts','Electricity','Insurance','Finance / Interest','Transport','Wages / Labour','Professional Fees','Bank Charges','Telephone / Data','Other Expense'];
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(+n||0),esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function parts(a,m){a=+a||0;if(m==='inc')return{gross:a,net:a/1.15,vat:a*V/1.15};if(m==='ex')return{gross:a*1.15,net:a,vat:a*V};return{gross:a,net:a,vat:0}}
-function persist(){localStorage.setItem(MT,JSON.stringify(tx));localStorage.setItem(MM,JSON.stringify(machines));localStorage.setItem(MS,JSON.stringify(settings));localStorage.setItem(MI,JSON.stringify(invoices));localStorage.setItem(MC,JSON.stringify(customers));localStorage.setItem(MB,JSON.stringify(businessSettings));window.COCOS_BUSINESS=businessSettings;renderHome()}
+function persist(){localStorage.setItem(MT,JSON.stringify(tx));localStorage.setItem(MM,JSON.stringify(machines));localStorage.setItem(MS,JSON.stringify(settings));localStorage.setItem(MI,JSON.stringify(invoices));localStorage.setItem(MC,JSON.stringify(customers));localStorage.setItem(MB,JSON.stringify(businessSettings));localStorage.setItem(MQ,JSON.stringify(quotes));localStorage.setItem(MP,JSON.stringify(partsList));window.COCOS_BUSINESS=businessSettings;renderHome()}
 function fy(date){let d=new Date(date+'T00:00:00'),y=d.getFullYear(),m=d.getMonth()+1;return m<=2?y:y+1}
 function fyLabel(y){return `${y-1}/${String(y).slice(-2)}`}
 function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.add(fy(x.date)));set.add(fy(new Date().toISOString().slice(0,10)));return [...set].sort((a,b)=>b-a)}
 function fillYears(){let opts='<option value="">All years</option>'+years().map(y=>`<option value="${y}">${fyLabel(y)}</option>`).join('');fYear.innerHTML=opts;rYear.innerHTML=opts}
-function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
-function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
+function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
+function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
+date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
 async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter a description and amount.');return}let ph='';try{ph=await compressPhoto(photo.files[0])}catch(e){}tx.push({id:Date.now(),type:type.value,date:date.value||new Date().toISOString().slice(0,10),party:party.value.trim(),desc:desc.value.trim(),area:area.value,machine:machine.value,cat:cat.value,ref:ref.value.trim(),amount:+amount.value,vat:vatMode.value,claim:type.value==='expense'&&claim.checked,paid:paid.value,notes:notes.value.trim(),photo:ph});persist();[party,desc,ref,amount,notes,photo].forEach(x=>x.value='');show('home')}
@@ -182,10 +217,55 @@ function loadCustomerIntoInvoice(){
  invCustomer.value=c.name;invCustomerVat.value=c.vat||'';invCustomerAddress.value=c.address||'';
 }
 
+function populateQuoteCustomers(){
+ if(!window.qCustomerSelect)return;
+ qCustomerSelect.innerHTML='<option value="">Choose saved customer</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+}
+function loadCustomerIntoQuote(){
+ let c=customers.find(x=>String(x.id)===String(qCustomerSelect.value)); if(!c)return;
+ qCustomer.value=c.name;qCustomerVat.value=c.vat||'';qCustomerAddress.value=c.address||'';
+}
+
+
+
+async function savePart(){
+ let name=partName.value.trim();if(!name)return alert('Enter a part name.');
+ let id=partId.value?+partId.value:Date.now();
+ let existing=partsList.find(x=>x.id===id),photoData=existing?.photo||'';
+ if(partPhoto.files[0]){try{photoData=await compressPhoto(partPhoto.files[0])}catch(e){}}
+ let obj={id,name,code:partCode.value.trim(),price:+partPrice.value||0,desc:partDesc.value.trim(),photo:photoData};
+ if(existing)Object.assign(existing,obj);else partsList.push(obj);
+ persist();clearPartForm();renderParts();
+}
+function clearPartForm(){
+ partId.value='';partName.value='';partCode.value='';partPrice.value='';partDesc.value='';partPhoto.value='';partPreview.src='';partPreview.classList.add('hidden');
+}
+function editPart(id){
+ let p=partsList.find(x=>x.id===id);if(!p)return;
+ partId.value=p.id;partName.value=p.name;partCode.value=p.code||'';partPrice.value=p.price||0;partDesc.value=p.desc||'';
+ if(p.photo){partPreview.src=p.photo;partPreview.classList.remove('hidden')}else{partPreview.src='';partPreview.classList.add('hidden')}
+ scrollTo(0,0)
+}
+function deletePart(id){if(confirm('Delete this part?')){partsList=partsList.filter(x=>x.id!==id);persist();renderParts()}}
+function renderParts(){
+ if(!window.partList)return;
+ let q=(partSearch.value||'').toLowerCase();
+ let arr=partsList.filter(p=>!q||p.name.toLowerCase().includes(q)||(p.code||'').toLowerCase().includes(q));
+ partList.innerHTML=arr.map(p=>`<div class="partcard">${p.photo?`<img class="partthumb" src="${p.photo}">`:`<div class="partthumb"></div>`}<div><b>${esc(p.name)}</b><div class="muted">${esc(p.code||'No code')} · ${money(p.price)} excl. VAT</div><div class="muted">${esc(p.desc||'')}</div></div><div><button class="soft" onclick="editPart(${p.id})">Edit</button><button class="expense" style="margin-top:6px" onclick="deletePart(${p.id})">Delete</button></div></div>`).join('')||'<p class="muted">No parts saved yet.</p>'
+}
+function pickPartForRow(btn,kind){
+ if(!partsList.length)return alert('No parts saved yet. Add parts under Parts first.');
+ let names=partsList.map((p,i)=>`${i+1}. ${p.name}${p.code?' ('+p.code+')':''}`).join('\n');
+ let choice=prompt('Choose part number:\n\n'+names);
+ let idx=parseInt(choice)-1;if(!(idx>=0&&idx<partsList.length))return;
+ let p=partsList[idx],row=btn.closest('.itemrow');
+ row.querySelector(kind==='invoice'?'.iiPart':'.qiPart').value=p.name;
+ row.querySelector(kind==='invoice'?'.iiUnit':'.qiUnit').value=p.price||0;
+}
 
 function addInvoiceItem(item={part:'',qty:1,unit:0}){
  let row=document.createElement('div');row.className='itemrow';
- row.innerHTML=`<div class="part"><label>Part / item name</label><input class="iiPart" value="${esc(item.part||'')}" placeholder="e.g. Slat"></div>
+ row.innerHTML=`<div class="part"><label>Part / item name</label><input class="iiPart" value="${esc(item.part||'')}" placeholder="e.g. Slat"><button type="button" class="soft" style="margin-top:6px;width:100%" onclick="pickPartForRow(this,'invoice')">Choose from Part List</button></div>
  <div><label>Qty</label><input class="iiQty" type="number" step="0.01" min="0" value="${item.qty??1}"></div>
  <div><label>Unit price excl.</label><input class="iiUnit" type="number" step="0.01" min="0" value="${item.unit??0}"></div>
  <div><button type="button" onclick="this.closest('.itemrow').remove()">×</button></div>`;
@@ -197,6 +277,51 @@ function getInvoiceItems(){
    qty:+r.querySelector('.iiQty').value||0,
    unit:+r.querySelector('.iiUnit').value||0
  })).filter(x=>x.part&&x.qty>0);
+}
+
+
+function addQuoteItem(item={part:'',qty:1,unit:0}){
+ let row=document.createElement('div');row.className='itemrow';
+ row.innerHTML=`<div class="part"><label>Part / item name</label><input class="qiPart" value="${esc(item.part||'')}" placeholder="e.g. Slat"><button type="button" class="soft" style="margin-top:6px;width:100%" onclick="pickPartForRow(this,'quote')">Choose from Part List</button></div>
+ <div><label>Qty</label><input class="qiQty" type="number" step="0.01" min="0" value="${item.qty??1}"></div>
+ <div><label>Unit price excl.</label><input class="qiUnit" type="number" step="0.01" min="0" value="${item.unit??0}"></div>
+ <div><button type="button" onclick="this.closest('.itemrow').remove()">×</button></div>`;
+ qItems.appendChild(row);
+}
+function getQuoteItems(){
+ return [...qItems.querySelectorAll('.itemrow')].map(r=>({
+   part:r.querySelector('.qiPart').value.trim(),
+   qty:+r.querySelector('.qiQty').value||0,
+   unit:+r.querySelector('.qiUnit').value||0
+ })).filter(x=>x.part&&x.qty>0);
+}
+function createQuote(){
+ if(!qCustomer.value.trim())return alert('Enter customer.');
+ let items=getQuoteItems();if(!items.length)return alert('Add at least one part/item with quantity.');
+ let v=+qVat.value||0,n=items.reduce((s,x)=>s+x.qty*x.unit,0),g=n*(1+v/100);
+ let next=Math.max(1,...quotes.map(q=>parseInt(String(q.number||'').replace(/\D/g,''))||0)+1);
+ let number='Q-'+String(next).padStart(4,'0');
+ quotes.push({id:Date.now(),number,customer:qCustomer.value.trim(),customerVat:qCustomerVat.value.trim(),customerAddress:qCustomerAddress.value.trim(),date:qDate.value||new Date().toISOString().slice(0,10),valid:qValid.value,items,notes:qNotes.value.trim(),net:n,vatRate:v,gross:g,status:'open'});
+ persist();[qCustomer,qCustomerVat,qCustomerAddress,qNotes].forEach(x=>x.value='');qCustomerSelect.value='';qItems.innerHTML='';addQuoteItem();renderQuotes()
+}
+function renderQuotes(){
+ if(!window.quoteList)return;
+ quoteList.innerHTML=quotes.slice().reverse().map(q=>`<div class="card invoice"><strong>${esc(q.number)} — ${esc(q.customer)}</strong><div class="muted">${esc(q.date)}${q.valid?' · Valid until '+esc(q.valid):''}</div><p>${q.items.map(x=>`${esc(x.part)} × ${x.qty}`).join(', ')}</p><table><tr><td>Net</td><td>${money(q.net)}</td></tr><tr><td>VAT</td><td>${money(q.net*q.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(q.gross)}</th></tr></table><div class="actions"><button class="soft" onclick="printQuote(${q.id})">Print / PDF</button><button class="income" onclick="convertQuote(${q.id})">Convert to Invoice</button></div></div>`).join('')||'<div class="card"><p class="muted">No quotes yet.</p></div>'
+}
+function convertQuote(id){
+ let q=quotes.find(x=>x.id===id);if(!q)return;
+ let prefix=(businessSettings.invoicePrefix||'CPH').trim()||'CPH';
+ let seq=Math.max(1,parseInt(businessSettings.nextInvoice||1));
+ let invNo=prefix+'-'+String(seq).padStart(4,'0');
+ invoices.push({id:Date.now(),number:invNo,customer:q.customer,customerVat:q.customerVat,customerAddress:q.customerAddress,date:new Date().toISOString().slice(0,10),due:new Date(Date.now()+30*86400000).toISOString().slice(0,10),desc:q.notes||'',items:JSON.parse(JSON.stringify(q.items)),net:q.net,vatRate:q.vatRate,gross:q.gross,paid:false,sourceQuote:q.number});
+ businessSettings.nextInvoice=seq+1;q.status='converted';persist();renderQuotes();alert('Converted '+q.number+' to invoice '+invNo+'.')
+}
+function printQuote(id){
+ let q=quotes.find(x=>x.id===id);if(!q)return;let b=window.COCOS_BUSINESS||{},w=window.open('','_blank');
+ w.document.write(`<meta name="viewport" content="width=device-width"><style>body{font-family:-apple-system;padding:30px;max-width:760px;margin:auto;color:#111}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}td:nth-child(2),td:nth-child(3),td:nth-child(4),th:nth-child(2),th:nth-child(3),th:nth-child(4){text-align:right}.top{display:flex;justify-content:space-between;gap:20px}.muted{color:#555}.box{border:1px solid #ddd;border-radius:12px;padding:14px;margin:14px 0}</style>
+ <div class="top"><div><h1>${esc(b.tradingName||"Coco's Plant Hire")}</h1><div class="muted">${b.ownerName?esc(b.ownerName)+'<br>':''}${esc(b.address||'')}<br>${esc(b.phone||'')}<br>${esc(b.email||'')}<br>VAT No: ${esc(b.vatNumber||'')}</div></div><div><h2>QUOTATION</h2><div><b>Quote:</b> ${esc(q.number)}<br><b>Date:</b> ${esc(q.date)}${q.valid?'<br><b>Valid until:</b> '+esc(q.valid):''}</div></div></div>
+ <div class="box"><b>Quote to:</b><br>${esc(q.customer)}${q.customerAddress?'<br>'+esc(q.customerAddress):''}${q.customerVat?'<br>VAT No: '+esc(q.customerVat):''}</div>
+ <table><tr><th>Part / Item</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr>${q.items.map(x=>`<tr><td>${esc(x.part)}</td><td>${x.qty}</td><td>${money(x.unit)}</td><td>${money(x.qty*x.unit)}</td></tr>`).join('')}<tr><td colspan="3">Amount excl. VAT</td><td>${money(q.net)}</td></tr><tr><td colspan="3">VAT ${q.vatRate}%</td><td>${money(q.net*q.vatRate/100)}</td></tr><tr><th colspan="3">Total incl. VAT</th><th>${money(q.gross)}</th></tr></table>${q.notes?`<p><b>Note:</b> ${esc(q.notes)}</p>`:''}<p class="muted">This is a quotation and not a tax invoice.</p><script>setTimeout(()=>window.print(),300)<\/script>`)
 }
 
 function createInvoice(){
@@ -259,7 +384,8 @@ function saveBusinessSettings(){
 function saveSettings(){settings.age=age.value;settings.other=+otherIncome.value||0;persist();alert('Settings saved.')}
 function download(data,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
 function exportCSV(){let H=['Date','Type','Party','Description','Area','Machine','Category','Reference','Amount','VAT Treatment','Gross','Net','VAT','Claim Input VAT','Payment Status','Notes'];let R=tx.map(x=>{let p=parts(x.amount,x.vat);return[x.date,x.type,x.party,x.desc,x.area,x.machine,x.cat,x.ref,x.amount,x.vat,p.gross,p.net,p.vat,x.claim?'Yes':'No',x.paid,x.notes]});download([H,...R].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'cocos-transactions.csv','text/csv')}
-function backup(){download(JSON.stringify({version:5,tx,machines,settings,invoices,customers,businessSettings},null,2),'cocos-backup-v3.json','application/json')}
-function restoreData(){let f=restore.files[0];if(!f)return alert('Choose a backup file.');let r=new FileReader();r.onload=()=>{try{let b=JSON.parse(r.result);if(!Array.isArray(b.tx))throw 0;if(confirm('Replace current data with this backup?')){tx=b.tx;machines=b.machines||machines;settings=b.settings||settings;invoices=b.invoices||[];customers=b.customers||customers;businessSettings=b.businessSettings||businessSettings;persist();show('home')}}catch(e){alert('Invalid backup file.')}};r.readAsText(f)}
-date.value=new Date().toISOString().slice(0,10);invDate.value=new Date().toISOString().slice(0,10);invDue.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);fillYears();persist();renderHome();
+function backup(){download(JSON.stringify({version:7,tx,machines,settings,invoices,customers,quotes,partsList,businessSettings},null,2),'cocos-backup-v3.json','application/json')}
+function restoreData(){let f=restore.files[0];if(!f)return alert('Choose a backup file.');let r=new FileReader();r.onload=()=>{try{let b=JSON.parse(r.result);if(!Array.isArray(b.tx))throw 0;if(confirm('Replace current data with this backup?')){tx=b.tx;machines=b.machines||machines;settings=b.settings||settings;invoices=b.invoices||[];customers=b.customers||customers;quotes=b.quotes||[];partsList=b.partsList||[];businessSettings=b.businessSettings||businessSettings;persist();show('home')}}catch(e){alert('Invalid backup file.')}};r.readAsText(f)}
+partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
+date.value=new Date().toISOString().slice(0,10);invDate.value=new Date().toISOString().slice(0,10);invDue.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);qDate.value=new Date().toISOString().slice(0,10);qValid.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);fillYears();persist();renderHome();
 </script></body></html>
