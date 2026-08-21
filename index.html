@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.1</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.2</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -218,17 +218,35 @@ function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.
 function fillYears(){let opts='<option value="">All years</option>'+years().map(y=>`<option value="${y}">${fyLabel(y)}</option>`).join('');fYear.innerHTML=opts;rYear.innerHTML=opts}
 function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();renderExternalInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
 function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
-[partGallery,partCamera].forEach(inp=>inp.addEventListener('change',async()=>{if(inp.files&&inp.files[0]){try{partPreview.src=await compressPhoto(inp.files[0]);partPreview.classList.remove('hidden')}catch(e){}}}));
-[extGallery,extCamera].forEach(inp=>inp.addEventListener('change',async()=>{
- if(inp.files&&inp.files.length){
-   extOcrStatus.textContent='Photo selected — preparing it…';
-   await handleExternalFiles(inp.files);
-   if(extPendingPhotos.length){
-     extOcrStatus.textContent='Photo ready — scanning automatically…';
-     await scanExternalInvoice();
+['partGallery','partCamera'].forEach(id=>{
+ const inp=document.getElementById(id);
+ if(inp) inp.addEventListener('change',async()=>{
+   const f=inp.files&&inp.files[0];
+   if(!f)return;
+   try{
+     const img=await compressPhoto(f);
+     const prev=document.getElementById('partPreview');
+     prev.src=img;prev.classList.remove('hidden');
+   }catch(e){console.error(e)}
+ });
+});
+['extGallery','extCamera'].forEach(id=>{
+ const inp=document.getElementById(id);
+ if(inp) inp.addEventListener('change',async()=>{
+   const files=inp.files;
+   const status=document.getElementById('extOcrStatus');
+   if(files&&files.length){
+     status.textContent='Photo selected — preparing it…';
+     await handleExternalFiles(files);
+     if(extPendingPhotos.length){
+       status.textContent='Photo ready — scanning automatically…';
+       await scanExternalInvoice();
+     }else{
+       status.textContent='The selected image could not be prepared. Try taking a screenshot of the invoice and choose that screenshot.';
+     }
    }
- }
-}));
+ });
+});
 extDate.value=new Date().toISOString().slice(0,10);date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -376,7 +394,8 @@ function printQuote(id){
 let extPendingPhotos=[];let extPendingFiles=[];
 async function handleExternalFiles(files){
  extPendingPhotos=[];extPendingFiles=[...files].slice(0,5);
- extOcrStatus.textContent='Loading selected photo…';
+ const status=document.getElementById('extOcrStatus');
+ status.textContent='Loading selected photo…';
  for(let f of extPendingFiles){
    try{
      let img=await compressPhoto(f);
@@ -386,7 +405,7 @@ async function handleExternalFiles(files){
    }
  }
  renderExternalPreview();
- extOcrStatus.textContent=extPendingPhotos.length?'Photo ready — tap Scan photo & fill invoice details.':'The selected photo could not be loaded. Please try another photo.';
+ status.textContent=extPendingPhotos.length?'Photo ready — scanning will start automatically.':'The selected photo could not be loaded. Try a screenshot or a JPEG/PNG image.';
 }
 function renderExternalPreview(){
  if(!window.extPreview)return;
@@ -457,35 +476,38 @@ function parseOCRInvoice(text){
  return out;
 }
 async function scanExternalInvoice(){
+ const status=document.getElementById('extOcrStatus');
+ const details=document.getElementById('extOcrDetails');
+ const textBox=document.getElementById('extOcrText');
  if(!extPendingPhotos.length && extPendingFiles.length){
-   extOcrStatus.textContent='Preparing selected photo…';
+   status.textContent='Preparing selected photo…';
    await handleExternalFiles(extPendingFiles);
  }
  if(!extPendingPhotos.length)return alert('No invoice photo is loaded yet. Please tap Photo Library or Camera and choose a photo.');
  if(!window.Tesseract)return alert('The invoice scanner could not load. Check your internet connection and try again.');
- extOcrStatus.textContent='Reading invoice photo… this can take 10–30 seconds.';
- extOcrDetails.classList.add('hidden');
+ status.textContent='Reading invoice photo… this can take 10–30 seconds.';
+ details.classList.add('hidden');
  try{
    let result=await Tesseract.recognize(extPendingPhotos[0],'eng',{
      logger:m=>{
        if(m.status==='recognizing text' && typeof m.progress==='number'){
-         extOcrStatus.textContent='Reading invoice photo… '+Math.round(m.progress*100)+'%';
+         status.textContent='Reading invoice photo… '+Math.round(m.progress*100)+'%';
        }
      }
    });
    let text=result?.data?.text||'';
-   extOcrText.value=text;
-   extOcrDetails.classList.remove('hidden');
+   textBox.value=text;
+   details.classList.remove('hidden');
    let d=parseOCRInvoice(text);
    if(d.number)extNumber.value=d.number;
    if(d.date)extDate.value=d.date;
    if(d.customer)extCustomer.value=d.customer;
    if(d.total)extTotal.value=d.total.toFixed(2);
    if(d.vat)extVat.value=d.vat.toFixed(2);
-   extOcrStatus.textContent='Scan complete. Please check the filled details before saving.';
+   status.textContent='Scan complete. Please check the filled details before saving.';
  }catch(e){
    console.error(e);
-   extOcrStatus.textContent='Could not read this photo. Try a clearer, straight-on image with good lighting.';
+   status.textContent='Could not read this photo. Try a clearer, straight-on image with good lighting.';
  }
 }
 
