@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.2</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.3</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -116,11 +116,15 @@ window.COCOS_BUSINESS = {
 <label>Notes</label><input id="extNotes" placeholder="Optional">
 <label>Invoice photo(s)</label>
 <div class="actions">
-<button type="button" class="soft" onclick="document.getElementById('extGallery').click()">🖼 Choose from Photo Library</button>
-<button type="button" class="soft" onclick="document.getElementById('extCamera').click()">📷 Take Photo</button>
+<label class="soft" style="text-align:center;padding:13px 14px;border-radius:12px;font-weight:700;cursor:pointer">
+🖼 Choose from Photo Library
+<input id="extGallery" type="file" accept="image/*,.heic,.heif" multiple style="display:none" onchange="externalPhotoChosen(this)">
+</label>
+<label class="soft" style="text-align:center;padding:13px 14px;border-radius:12px;font-weight:700;cursor:pointer">
+📷 Take Photo
+<input id="extCamera" type="file" accept="image/*" capture="environment" style="display:none" onchange="externalPhotoChosen(this)">
+</label>
 </div>
-<input id="extGallery" type="file" accept="image/*,.heic,.heif" multiple style="display:none">
-<input id="extCamera" type="file" accept="image/*" capture="environment" style="display:none">
 <div id="extPreview"></div>
 <button type="button" class="soft full" onclick="scanExternalInvoice()">🔎 Scan photo & fill invoice details</button>
 <div id="extOcrStatus" class="muted" style="margin:8px 0"></div>
@@ -230,23 +234,7 @@ function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='inc
    }catch(e){console.error(e)}
  });
 });
-['extGallery','extCamera'].forEach(id=>{
- const inp=document.getElementById(id);
- if(inp) inp.addEventListener('change',async()=>{
-   const files=inp.files;
-   const status=document.getElementById('extOcrStatus');
-   if(files&&files.length){
-     status.textContent='Photo selected — preparing it…';
-     await handleExternalFiles(files);
-     if(extPendingPhotos.length){
-       status.textContent='Photo ready — scanning automatically…';
-       await scanExternalInvoice();
-     }else{
-       status.textContent='The selected image could not be prepared. Try taking a screenshot of the invoice and choose that screenshot.';
-     }
-   }
- });
-});
+
 extDate.value=new Date().toISOString().slice(0,10);date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -392,6 +380,24 @@ function printQuote(id){
 
 
 let extPendingPhotos=[];let extPendingFiles=[];
+
+async function externalPhotoChosen(input){
+ const files=input && input.files ? input.files : null;
+ const status=document.getElementById('extOcrStatus');
+ if(!files || !files.length){
+   status.textContent='No photo was returned by the iPhone.';
+   return;
+ }
+ status.textContent='Photo received — saving preview…';
+ await handleExternalFiles(files);
+ if(extPendingPhotos.length){
+   status.textContent='Photo saved in the app — scanning automatically…';
+   await scanExternalInvoice();
+ }else{
+   status.textContent='The photo was returned, but the app could not read it. Try choosing the same photo from Photo Library.';
+ }
+}
+
 async function handleExternalFiles(files){
  extPendingPhotos=[];extPendingFiles=[...files].slice(0,5);
  const status=document.getElementById('extOcrStatus');
@@ -409,7 +415,7 @@ async function handleExternalFiles(files){
 }
 function renderExternalPreview(){
  if(!window.extPreview)return;
- extPreview.innerHTML=extPendingPhotos.length?`<div class="extthumbs">${extPendingPhotos.map((x,i)=>`<div><img src="${x}"><button type="button" class="expense" style="width:92px;margin-top:4px;padding:7px" onclick="removeExternalPreview(${i})">Remove</button></div>`).join('')}</div>`:'<p class="muted">No photos selected.</p>';
+ extPreview.innerHTML=extPendingPhotos.length?`<div class="notice" style="margin-top:8px">✅ ${extPendingPhotos.length} invoice photo${extPendingPhotos.length>1?'s':''} saved in the app.</div><div class="extthumbs">${extPendingPhotos.map((x,i)=>`<div><img src="${x}"><button type="button" class="expense" style="width:92px;margin-top:4px;padding:7px" onclick="removeExternalPreview(${i})">Remove</button></div>`).join('')}</div>`:'<p class="muted">No photos selected.</p>';
 }
 function removeExternalPreview(i){extPendingPhotos.splice(i,1);renderExternalPreview()}
 
