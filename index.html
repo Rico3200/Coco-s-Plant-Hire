@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.6</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.7</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -218,7 +218,7 @@ let tx=JSON.parse(localStorage.getItem(MT)||'null'),machines=JSON.parse(localSto
 let businessSettings=JSON.parse(localStorage.getItem(MB)||'null')||Object.assign({},window.COCOS_BUSINESS,{invoicePrefix:'CPH',nextInvoice:1});
 window.COCOS_BUSINESS=businessSettings;
 if(!tx){tx=JSON.parse(localStorage.getItem('cocosV2Tx')||'null')||JSON.parse(localStorage.getItem('cocosTx')||'[]').map(x=>({id:x.id||Date.now()+Math.random(),type:x.type,date:x.date,party:'',desc:x.desc,area:x.cat||'Other',machine:'',cat:x.cat||'Other',ref:'',amount:+x.amount||0,vat:'inc',claim:x.type==='expense',paid:'paid',notes:'',photo:''}))}
-const incCats=['Plant Hire Income','Laser Cutting Income','Agricultural Parts Sales','Other Income'],expCats=['Fuel','Repairs & Maintenance','Plant & Equipment','Materials — Laser Cutting','Materials — Agricultural Parts','Electricity','Insurance','Finance / Interest','Transport','Wages / Labour','Professional Fees','Bank Charges','Telephone / Data','Other Expense'];
+const incCats=['Plant Hire Income','Laser Cutting Income','Agricultural Parts Sales','Other Income'],expCats=['Fuel','Repairs & Maintenance','Plant & Equipment','Materials — Laser Cutting','Materials — Agricultural Parts','Electricity','Insurance','Finance / Interest','Transport','Wages / Labour','Salaries','Sponsorship','Professional Fees','Bank Charges','Telephone / Data','Other Expense'];
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(+n||0),esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function parts(a,m){a=+a||0;if(m==='inc')return{gross:a,net:a/1.15,vat:a*V/1.15};if(m==='ex')return{gross:a*1.15,net:a,vat:a*V};return{gross:a,net:a,vat:0}}
 function persist(){
