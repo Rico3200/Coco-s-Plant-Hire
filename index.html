@@ -26,6 +26,17 @@ nav button{background:none;color:#2563eb;padding:5px;font-size:11px}.seg{display
 .invoice{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0}.invoice strong{font-size:16px}.right{text-align:right}
 @media print{header,nav,.no-print{display:none!important}body{padding:0;background:white}.wrap{max-width:none;padding:0}.screen{display:none!important}.screen.printable{display:block!important}.card{box-shadow:none;border:1px solid #ddd}}
 </style>
+
+<script>
+window.COCOS_BUSINESS = {
+  vatNumber: "4500274750",
+  address: "4 End Street, Kroonstad",
+  phone: "083 290 6752",
+  email: "ricowentworth@yahoo.com",
+  tradingName: "Coco's Plant Hire"
+};
+</script>
+
 </head>
 <body>
 <header><h1>🚜 Coco's Plant Hire</h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
@@ -66,8 +77,16 @@ nav button{background:none;color:#2563eb;padding:5px;font-size:11px}.seg{display
 <label>Financial year</label><select id="fYear" onchange="renderRecords();renderReports()"></select>
 <div id="recordList"></div></div></section>
 
-<section id="invoices" class="screen"><h2>Invoices</h2><div class="card no-print">
-<h3>Create invoice</h3><label>Customer</label><input id="invCustomer"><div class="row"><div><label>Invoice date</label><input id="invDate" type="date"></div><div><label>Due date</label><input id="invDue" type="date"></div></div>
+<section id="invoices" class="screen"><h2>Invoices</h2>
+<div class="card no-print"><h3>Customers</h3>
+<div class="row"><div><label>Customer name</label><input id="custName"></div><div><label>Customer VAT number</label><input id="custVat"></div></div>
+<label>Customer address</label><input id="custAddress">
+<button class="soft full" onclick="saveCustomer()">Save Customer</button>
+<div id="customerList"></div></div>
+<div class="card no-print">
+<h3>Create invoice</h3><label>Customer</label><select id="invCustomerSelect" onchange="loadCustomerIntoInvoice()"><option value="">Choose saved customer</option></select>
+<label>Customer name</label><input id="invCustomer">
+<div class="row"><div><label>Customer VAT number</label><input id="invCustomerVat"></div><div><label>Customer address</label><input id="invCustomerAddress"></div></div><div class="row"><div><label>Invoice date</label><input id="invDate" type="date"></div><div><label>Due date</label><input id="invDue" type="date"></div></div>
 <label>Description</label><textarea id="invDesc" placeholder="Work or goods supplied"></textarea>
 <div class="row"><div><label>Amount excl. VAT</label><input id="invNet" type="number" step="0.01"></div><div><label>VAT</label><select id="invVat"><option value="15">15%</option><option value="0">0%</option></select></div></div>
 <button class="primary full" onclick="createInvoice()">Create Invoice</button></div>
@@ -90,18 +109,18 @@ nav button{background:none;color:#2563eb;padding:5px;font-size:11px}.seg{display
 <nav><button onclick="show('home')">🏠<br>Home</button><button onclick="openEntry('income')">➕<br>Add</button><button onclick="show('machines')">🚜<br>Machines</button><button onclick="show('records')">📋<br>Records</button><button onclick="show('invoices')">🧾<br>Invoices</button><button onclick="show('reports')">📊<br>Reports</button><button onclick="show('more')">⚙️<br>More</button></nav>
 
 <script>
-const V=.15,MT='cocosV3Tx',MM='cocosMachines',MS='cocosSettings',MI='cocosInvoices';
-let tx=JSON.parse(localStorage.getItem(MT)||'null'),machines=JSON.parse(localStorage.getItem(MM)||'["Machine 1","Machine 2","Machine 3"]'),settings=JSON.parse(localStorage.getItem(MS)||'{"age":"u65","other":0}'),invoices=JSON.parse(localStorage.getItem(MI)||'[]'),report='tax';
+const V=.15,MT='cocosV3Tx',MM='cocosMachines',MS='cocosSettings',MI='cocosInvoices',MC='cocosCustomers';
+let tx=JSON.parse(localStorage.getItem(MT)||'null'),machines=JSON.parse(localStorage.getItem(MM)||'["Machine 1","Machine 2","Machine 3"]'),settings=JSON.parse(localStorage.getItem(MS)||'{"age":"u65","other":0}'),invoices=JSON.parse(localStorage.getItem(MI)||'[]'),customers=JSON.parse(localStorage.getItem(MC)||'[]'),report='tax';
 if(!tx){tx=JSON.parse(localStorage.getItem('cocosV2Tx')||'null')||JSON.parse(localStorage.getItem('cocosTx')||'[]').map(x=>({id:x.id||Date.now()+Math.random(),type:x.type,date:x.date,party:'',desc:x.desc,area:x.cat||'Other',machine:'',cat:x.cat||'Other',ref:'',amount:+x.amount||0,vat:'inc',claim:x.type==='expense',paid:'paid',notes:'',photo:''}))}
 const incCats=['Plant Hire Income','Laser Cutting Income','Agricultural Parts Sales','Other Income'],expCats=['Fuel','Repairs & Maintenance','Plant & Equipment','Materials — Laser Cutting','Materials — Agricultural Parts','Electricity','Insurance','Finance / Interest','Transport','Wages / Labour','Professional Fees','Bank Charges','Telephone / Data','Other Expense'];
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(+n||0),esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function parts(a,m){a=+a||0;if(m==='inc')return{gross:a,net:a/1.15,vat:a*V/1.15};if(m==='ex')return{gross:a*1.15,net:a,vat:a*V};return{gross:a,net:a,vat:0}}
-function persist(){localStorage.setItem(MT,JSON.stringify(tx));localStorage.setItem(MM,JSON.stringify(machines));localStorage.setItem(MS,JSON.stringify(settings));localStorage.setItem(MI,JSON.stringify(invoices));renderHome()}
+function persist(){localStorage.setItem(MT,JSON.stringify(tx));localStorage.setItem(MM,JSON.stringify(machines));localStorage.setItem(MS,JSON.stringify(settings));localStorage.setItem(MI,JSON.stringify(invoices));localStorage.setItem(MC,JSON.stringify(customers));renderHome()}
 function fy(date){let d=new Date(date+'T00:00:00'),y=d.getFullYear(),m=d.getMonth()+1;return m<=2?y:y+1}
 function fyLabel(y){return `${y-1}/${String(y).slice(-2)}`}
 function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.add(fy(x.date)));set.add(fy(new Date().toISOString().slice(0,10)));return [...set].sort((a,b)=>b-a)}
 function fillYears(){let opts='<option value="">All years</option>'+years().map(y=>`<option value="${y}">${fyLabel(y)}</option>`).join('');fYear.innerHTML=opts;rYear.innerHTML=opts}
-function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices')renderInvoices();if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0}scrollTo(0,0)}
+function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0}scrollTo(0,0)}
 function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -119,10 +138,39 @@ function seg(b){b.parentElement.querySelectorAll('button').forEach(x=>x.classLis
 function renderReports(){let y=+rYear.value||0,flt=x=>!y||fy(x.date)===y,t=totals(flt);if(report==='tax')reportBody.innerHTML=`<div class="card"><h3>VAT summary ${y?'— '+fyLabel(y):''}</h3><table><tr><td>Output VAT</td><td>${money(t.out)}</td></tr><tr><td>Claimable input VAT</td><td>${money(t.input)}</td></tr><tr><th>VAT payable / (refund)</th><th>${money(t.vat)}</th></tr></table></div><div class="card"><h3>Income tax estimate</h3><table><tr><td>Business profit excl. VAT</td><td>${money(t.profit)}</td></tr><tr><td>Other taxable income</td><td>${money(settings.other)}</td></tr><tr><th>Estimated personal income tax</th><th>${money(taxEst(t.profit))}</th></tr></table></div>`;
 if(report==='areas')reportBody.innerHTML=['Plant Hire','Laser Cutting','Agricultural Parts','Other'].map(a=>{let q=totals(x=>flt(x)&&x.area===a);return`<div class="card"><h3>${a}</h3><table><tr><td>Sales</td><td>${money(q.sales)}</td></tr><tr><td>Expenses</td><td>${money(q.expenses)}</td></tr><tr><th>Profit excl. VAT</th><th>${money(q.profit)}</th></tr></table></div>`}).join('');
 if(report==='out'){let a=tx.filter(x=>flt(x)&&x.paid==='unpaid');reportBody.innerHTML=`<div class="card"><h3>Outstanding</h3>${a.map(x=>`<div class="tx"><div><b>${esc(x.party||x.desc)}</b><div class="muted">${esc(x.ref||x.desc)} · ${esc(x.date)}</div></div><div>${money(parts(x.amount,x.vat).gross)}</div></div>`).join('')||'<p class="muted">Nothing marked outstanding.</p>'}</div>`}}
-function createInvoice(){if(!invCustomer.value.trim()||!(+invNet.value>0))return alert('Enter customer and amount.');let v=+invVat.value||0,n=+invNet.value,g=n*(1+v/100);invoices.push({id:Date.now(),number:'CPH-'+String(Date.now()).slice(-6),customer:invCustomer.value.trim(),date:invDate.value||new Date().toISOString().slice(0,10),due:invDue.value,desc:invDesc.value.trim(),net:n,vatRate:v,gross:g,paid:false});persist();[invCustomer,invDesc,invNet].forEach(x=>x.value='');renderInvoices()}
-function renderInvoices(){invoiceList.innerHTML=invoices.slice().reverse().map(i=>`<div class="card invoice"><strong>${esc(i.number)} — ${esc(i.customer)}</strong><div class="muted">${esc(i.date)}${i.due?' · Due '+esc(i.due):''}</div><p>${esc(i.desc)}</p><table><tr><td>Net</td><td>${money(i.net)}</td></tr><tr><td>VAT</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(i.gross)}</th></tr></table><div class="actions"><button class="soft" onclick="printInvoice(${i.id})">Print / PDF</button><button class="${i.paid?'soft':'income'}" onclick="toggleInvoice(${i.id})">${i.paid?'Mark unpaid':'Mark paid'}</button></div></div>`).join('')||'<div class="card"><p class="muted">No invoices yet.</p></div>'}
+
+function saveCustomer(){
+ let name=custName.value.trim(); if(!name)return alert('Enter a customer name.');
+ let existing=customers.find(c=>c.name.toLowerCase()===name.toLowerCase());
+ let obj={id:existing?existing.id:Date.now(),name,vat:custVat.value.trim(),address:custAddress.value.trim()};
+ if(existing) Object.assign(existing,obj); else customers.push(obj);
+ custName.value='';custVat.value='';custAddress.value='';persist();renderCustomers();
+}
+function renderCustomers(){
+ if(!window.custName)return;
+ customerList.innerHTML=customers.map(c=>`<div class="tx"><div><b>${esc(c.name)}</b><div class="muted">${esc(c.vat||'No VAT number')} ${c.address?'· '+esc(c.address):''}</div></div><button class="soft" onclick="deleteCustomer(${c.id})">Delete</button></div>`).join('')||'<p class="muted">No saved customers yet.</p>';
+ invCustomerSelect.innerHTML='<option value="">Choose saved customer</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+}
+function deleteCustomer(id){if(confirm('Delete this customer?')){customers=customers.filter(c=>c.id!==id);persist();renderCustomers()}}
+function loadCustomerIntoInvoice(){
+ let c=customers.find(x=>String(x.id)===String(invCustomerSelect.value)); if(!c)return;
+ invCustomer.value=c.name;invCustomerVat.value=c.vat||'';invCustomerAddress.value=c.address||'';
+}
+
+function createInvoice(){if(!invCustomer.value.trim()||!(+invNet.value>0))return alert('Enter customer and amount.');let v=+invVat.value||0,n=+invNet.value,g=n*(1+v/100);invoices.push({id:Date.now(),number:'CPH-'+String(Date.now()).slice(-6),customer:invCustomer.value.trim(),customerVat:invCustomerVat.value.trim(),customerAddress:invCustomerAddress.value.trim(),date:invDate.value||new Date().toISOString().slice(0,10),due:invDue.value,desc:invDesc.value.trim(),net:n,vatRate:v,gross:g,paid:false});persist();[invCustomer,invCustomerVat,invCustomerAddress,invDesc,invNet].forEach(x=>x.value='');invCustomerSelect.value='';renderInvoices()}
+function renderInvoices(){invoiceList.innerHTML=invoices.slice().reverse().map(i=>`<div class="card invoice"><strong>${esc(i.number)} — ${esc(i.customer)}</strong><div class="muted">${esc(i.date)}${i.due?' · Due '+esc(i.due):''}</div><div class="muted">${i.customerVat?'VAT '+esc(i.customerVat):''}${i.customerAddress?' · '+esc(i.customerAddress):''}</div><p>${esc(i.desc)}</p><table><tr><td>Net</td><td>${money(i.net)}</td></tr><tr><td>VAT</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(i.gross)}</th></tr></table><div class="actions"><button class="soft" onclick="printInvoice(${i.id})">Print / PDF</button><button class="${i.paid?'soft':'income'}" onclick="toggleInvoice(${i.id})">${i.paid?'Mark unpaid':'Mark paid'}</button></div></div>`).join('')||'<div class="card"><p class="muted">No invoices yet.</p></div>'}
 function toggleInvoice(id){let i=invoices.find(x=>x.id===id);if(i){i.paid=!i.paid;persist();renderInvoices()}}
-function printInvoice(id){let i=invoices.find(x=>x.id===id);if(!i)return;let w=window.open('','_blank');w.document.write(`<meta name="viewport" content="width=device-width"><style>body{font-family:-apple-system;padding:30px;max-width:720px;margin:auto}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}td:last-child,th:last-child{text-align:right}</style><h1>Coco's Plant Hire</h1><h2>Tax Invoice ${esc(i.number)}</h2><p><b>Customer:</b> ${esc(i.customer)}<br><b>Date:</b> ${esc(i.date)}${i.due?'<br><b>Due:</b> '+esc(i.due):''}</p><p>${esc(i.desc)}</p><table><tr><td>Amount excl. VAT</td><td>${money(i.net)}</td></tr><tr><td>VAT ${i.vatRate}%</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(i.gross)}</th></tr></table><p style="margin-top:30px">Generated by Coco's Plant Hire app.</p><script>setTimeout(()=>window.print(),300)<\/script>`)}
+function printInvoice(id){
+ let i=invoices.find(x=>x.id===id);if(!i)return;
+ let b=window.COCOS_BUSINESS||{};
+ let w=window.open('','_blank');
+ w.document.write(`<meta name="viewport" content="width=device-width"><style>body{font-family:-apple-system;padding:30px;max-width:760px;margin:auto;color:#111}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}td:last-child,th:last-child{text-align:right}.top{display:flex;justify-content:space-between;gap:20px}.muted{color:#555}.box{border:1px solid #ddd;border-radius:12px;padding:14px;margin:14px 0}</style>
+ <div class="top"><div><h1>${esc(b.tradingName||"Coco's Plant Hire")}</h1><div class="muted">${esc(b.address||'')}<br>${esc(b.phone||'')}<br>${esc(b.email||'')}<br>VAT No: ${esc(b.vatNumber||'')}</div></div><div><h2>TAX INVOICE</h2><div><b>Invoice:</b> ${esc(i.number)}<br><b>Date:</b> ${esc(i.date)}${i.due?'<br><b>Due:</b> '+esc(i.due):''}</div></div></div>
+ <div class="box"><b>Bill to:</b><br>${esc(i.customer)}${i.customerAddress?'<br>'+esc(i.customerAddress):''}${i.customerVat?'<br>VAT No: '+esc(i.customerVat):''}</div>
+ <p>${esc(i.desc)}</p>
+ <table><tr><td>Amount excl. VAT</td><td>${money(i.net)}</td></tr><tr><td>VAT ${i.vatRate}%</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total incl. VAT</th><th>${money(i.gross)}</th></tr></table>
+ <p style="margin-top:28px" class="muted">Generated by Coco's Plant Hire app.</p><script>setTimeout(()=>window.print(),300)<\/script>`)
+}
 function saveSettings(){settings.age=age.value;settings.other=+otherIncome.value||0;persist();alert('Settings saved.')}
 function download(data,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
 function exportCSV(){let H=['Date','Type','Party','Description','Area','Machine','Category','Reference','Amount','VAT Treatment','Gross','Net','VAT','Claim Input VAT','Payment Status','Notes'];let R=tx.map(x=>{let p=parts(x.amount,x.vat);return[x.date,x.type,x.party,x.desc,x.area,x.machine,x.cat,x.ref,x.amount,x.vat,p.gross,p.net,p.vat,x.claim?'Yes':'No',x.paid,x.notes]});download([H,...R].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'cocos-transactions.csv','text/csv')}
