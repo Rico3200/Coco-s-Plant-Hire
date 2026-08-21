@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire</h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.1</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -223,6 +223,10 @@ function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='inc
  if(inp.files&&inp.files.length){
    extOcrStatus.textContent='Photo selected — preparing it…';
    await handleExternalFiles(inp.files);
+   if(extPendingPhotos.length){
+     extOcrStatus.textContent='Photo ready — scanning automatically…';
+     await scanExternalInvoice();
+   }
  }
 }));
 extDate.value=new Date().toISOString().slice(0,10);date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
@@ -457,7 +461,7 @@ async function scanExternalInvoice(){
    extOcrStatus.textContent='Preparing selected photo…';
    await handleExternalFiles(extPendingFiles);
  }
- if(!extPendingPhotos.length)return alert('The photo was selected but could not be loaded. Please choose it again.');
+ if(!extPendingPhotos.length)return alert('No invoice photo is loaded yet. Please tap Photo Library or Camera and choose a photo.');
  if(!window.Tesseract)return alert('The invoice scanner could not load. Check your internet connection and try again.');
  extOcrStatus.textContent='Reading invoice photo… this can take 10–30 seconds.';
  extOcrDetails.classList.add('hidden');
