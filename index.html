@@ -219,7 +219,12 @@ function fillYears(){let opts='<option value="">All years</option>'+years().map(
 function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();renderExternalInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
 function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
 [partGallery,partCamera].forEach(inp=>inp.addEventListener('change',async()=>{if(inp.files&&inp.files[0]){try{partPreview.src=await compressPhoto(inp.files[0]);partPreview.classList.remove('hidden')}catch(e){}}}));
-[extGallery,extCamera].forEach(inp=>inp.addEventListener('change',()=>{if(inp.files&&inp.files.length)handleExternalFiles(inp.files)}));
+[extGallery,extCamera].forEach(inp=>inp.addEventListener('change',async()=>{
+ if(inp.files&&inp.files.length){
+   extOcrStatus.textContent='Photo selected — preparing it…';
+   await handleExternalFiles(inp.files);
+ }
+}));
 extDate.value=new Date().toISOString().slice(0,10);date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
@@ -364,12 +369,20 @@ function printQuote(id){
 }
 
 
-let extPendingPhotos=[];
+let extPendingPhotos=[];let extPendingFiles=[];
 async function handleExternalFiles(files){
- extPendingPhotos=[];
- let arr=[...files].slice(0,5);
- for(let f of arr){try{extPendingPhotos.push(await compressPhoto(f))}catch(e){}}
+ extPendingPhotos=[];extPendingFiles=[...files].slice(0,5);
+ extOcrStatus.textContent='Loading selected photo…';
+ for(let f of extPendingFiles){
+   try{
+     let img=await compressPhoto(f);
+     if(img)extPendingPhotos.push(img);
+   }catch(e){
+     console.error('Photo load failed',e);
+   }
+ }
  renderExternalPreview();
+ extOcrStatus.textContent=extPendingPhotos.length?'Photo ready — tap Scan photo & fill invoice details.':'The selected photo could not be loaded. Please try another photo.';
 }
 function renderExternalPreview(){
  if(!window.extPreview)return;
@@ -440,7 +453,11 @@ function parseOCRInvoice(text){
  return out;
 }
 async function scanExternalInvoice(){
- if(!extPendingPhotos.length)return alert('Choose at least one invoice photo first.');
+ if(!extPendingPhotos.length && extPendingFiles.length){
+   extOcrStatus.textContent='Preparing selected photo…';
+   await handleExternalFiles(extPendingFiles);
+ }
+ if(!extPendingPhotos.length)return alert('The photo was selected but could not be loaded. Please choose it again.');
  if(!window.Tesseract)return alert('The invoice scanner could not load. Check your internet connection and try again.');
  extOcrStatus.textContent='Reading invoice photo… this can take 10–30 seconds.';
  extOcrDetails.classList.add('hidden');
@@ -474,7 +491,7 @@ function saveExternalInvoice(){
  let total=+extTotal.value||0,vat=+extVat.value||0;
  let obj={id:Date.now(),number:extNumber.value.trim(),date:extDate.value||new Date().toISOString().slice(0,10),customer:extCustomer.value.trim(),total,vat,area:extArea.value,notes:extNotes.value.trim(),photos:[...extPendingPhotos],posted:false};
  externalInvoices.push(obj);persist();
- [extNumber,extCustomer,extTotal,extVat,extNotes].forEach(x=>x.value='');extGallery.value='';extCamera.value='';extPendingPhotos=[];renderExternalPreview();extOcrStatus.textContent='';extOcrText.value='';extOcrDetails.classList.add('hidden');renderExternalInvoices();
+ [extNumber,extCustomer,extTotal,extVat,extNotes].forEach(x=>x.value='');extGallery.value='';extCamera.value='';extPendingPhotos=[];extPendingFiles=[];renderExternalPreview();extOcrStatus.textContent='';extOcrText.value='';extOcrDetails.classList.add('hidden');renderExternalInvoices();
 }
 function renderExternalInvoices(){
  if(!window.externalInvoiceList)return;
