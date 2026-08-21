@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.5</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.6</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -58,7 +58,7 @@ window.COCOS_BUSINESS = {
 <div class="card metric"><small>VAT position</small><strong id="vat"></strong></div>
 </div>
 <div class="card"><h3>Estimated personal income tax</h3><strong id="tax" style="font-size:25px"></strong><p class="muted">Planning estimate based on the 2027 individual tax table and selected rebate.</p></div>
-<div class="actions"><button class="income" onclick="openEntry('income')">＋ Add Income</button><button class="expense" onclick="openEntry('expense')">− Add Expense</button></div>
+<div class="actions"><button class="income" onclick="openEntry('income')">＋ Add Income</button><button class="expense" onclick="openEntry('expense')">− Add Expense</button></div><div id="storageWarning" class="notice hidden" style="margin-top:12px">⚠️ iPhone storage for this app is getting full because invoice/part photos are stored on the device. Your invoices are saved first, but please make a backup and remove old photo-heavy imports if this warning appears.</div>
 </section>
 
 <section id="entry" class="screen">
@@ -199,6 +199,12 @@ window.COCOS_BUSINESS = {
 <div class="row"><div><label>Next invoice number</label><input id="sNextInvoice" type="number" min="1"></div><div><label>Invoice prefix</label><input id="sInvoicePrefix" placeholder="CPH"></div></div>
 <button class="primary full" onclick="saveBusinessSettings()">Save Invoice Details</button>
 </div>
+<div class="card"><h3>Storage health</h3>
+<p class="muted">Photos use much more storage than invoice text. If invoices stop saving, photo storage is usually the cause.</p>
+<button class="soft full" onclick="checkStorageHealth()">Check storage usage</button>
+<button class="expense full" style="margin-top:8px" onclick="removeImportedInvoicePhotos()">Remove imported invoice photos only</button>
+<p id="storageHealthResult" class="muted"></p>
+</div>
 <div class="card"><h3>Export & backup</h3><div class="actions"><button class="soft" onclick="exportCSV()">Export CSV</button><button class="soft" onclick="backup()">Backup JSON</button></div>
 <label>Restore backup</label><input id="restore" type="file" accept=".json"><button class="soft full" onclick="restoreData()">Restore JSON</button><p class="muted">Back up regularly. Your records are stored locally on this iPhone/browser.</p></div>
 <div class="notice">Tax figures are planning estimates, not a SARS return. VAT claims depend on valid tax invoices and the nature of the expense.</div></section>
@@ -215,7 +221,26 @@ if(!tx){tx=JSON.parse(localStorage.getItem('cocosV2Tx')||'null')||JSON.parse(loc
 const incCats=['Plant Hire Income','Laser Cutting Income','Agricultural Parts Sales','Other Income'],expCats=['Fuel','Repairs & Maintenance','Plant & Equipment','Materials — Laser Cutting','Materials — Agricultural Parts','Electricity','Insurance','Finance / Interest','Transport','Wages / Labour','Professional Fees','Bank Charges','Telephone / Data','Other Expense'];
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR'}).format(+n||0),esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function parts(a,m){a=+a||0;if(m==='inc')return{gross:a,net:a/1.15,vat:a*V/1.15};if(m==='ex')return{gross:a*1.15,net:a,vat:a*V};return{gross:a,net:a,vat:0}}
-function persist(){localStorage.setItem(MT,JSON.stringify(tx));localStorage.setItem(MM,JSON.stringify(machines));localStorage.setItem(MS,JSON.stringify(settings));localStorage.setItem(MI,JSON.stringify(invoices));localStorage.setItem(MC,JSON.stringify(customers));localStorage.setItem(MB,JSON.stringify(businessSettings));localStorage.setItem(MQ,JSON.stringify(quotes));localStorage.setItem(MP,JSON.stringify(partsList));localStorage.setItem(MX,JSON.stringify(externalInvoices));window.COCOS_BUSINESS=businessSettings;renderHome()}
+function persist(){
+ // Save the most important bookkeeping records first.
+ // Photo-heavy records are saved last so a storage-limit error cannot block invoices.
+ const jobs=[
+   [MI,invoices],[MB,businessSettings],[MS,settings],[MM,machines],[MC,customers],
+   [MQ,quotes],[MT,tx],[MP,partsList],[MX,externalInvoices]
+ ];
+ let failed=[];
+ for(const [key,val] of jobs){
+   try{localStorage.setItem(key,JSON.stringify(val))}
+   catch(e){failed.push(key);console.error('Storage save failed for',key,e)}
+ }
+ window.COCOS_BUSINESS=businessSettings;
+ if(failed.length){
+   window._cocosStorageWarning=true;
+ }else{
+   window._cocosStorageWarning=false;
+ }
+ renderHome()
+}
 function fy(date){let d=new Date(date+'T00:00:00'),y=d.getFullYear(),m=d.getMonth()+1;return m<=2?y:y+1}
 function fyLabel(y){return `${y-1}/${String(y).slice(-2)}`}
 function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.add(fy(x.date)));set.add(fy(new Date().toISOString().slice(0,10)));return [...set].sort((a,b)=>b-a)}
@@ -249,7 +274,7 @@ async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter 
 function totals(fn=()=>true){let r={sales:0,expenses:0,out:0,input:0,netSales:0,netExpenses:0};tx.filter(fn).forEach(x=>{let p=parts(x.amount,x.vat);if(x.type==='income'){r.sales+=p.gross;r.netSales+=p.net;r.out+=p.vat}else{r.expenses+=p.gross;r.netExpenses+=p.net;if(x.claim)r.input+=p.vat}});r.profit=r.netSales-r.netExpenses;r.vat=r.out-r.input;return r}
 function grossTax(p){if(p<=245100)return p*.18;if(p<=383100)return 44118+(p-245100)*.26;if(p<=530200)return 79998+(p-383100)*.31;if(p<=695800)return 125599+(p-530200)*.36;if(p<=887000)return 185215+(p-695800)*.39;if(p<=1878600)return 259783+(p-887000)*.41;return 666339+(p-1878600)*.45}
 function taxEst(p){let t=Math.max(0,p+(+settings.other||0)),reb=17820;if(settings.age==='65')reb+=9765;if(settings.age==='75')reb+=13014;return Math.max(0,grossTax(t)-reb)}
-function renderHome(){let t=totals();sales.textContent=money(t.sales);expenses.textContent=money(t.expenses);profit.textContent=money(t.profit);vat.textContent=money(t.vat);tax.textContent=money(taxEst(t.profit))}
+function renderHome(){let t=totals();sales.textContent=money(t.sales);expenses.textContent=money(t.expenses);profit.textContent=money(t.profit);vat.textContent=money(t.vat);tax.textContent=money(taxEst(t.profit));let sw=document.getElementById('storageWarning');if(sw)sw.classList.toggle('hidden',!window._cocosStorageWarning)}
 function addMachine(){let n=newMachine.value.trim();if(!n)return;if(machines.includes(n))return alert('Machine already exists.');machines.push(n);newMachine.value='';persist();renderMachines()}
 function renderMachines(){machineCards.innerHTML=machines.map((m,i)=>{let t=totals(x=>x.machine===m);return`<div class="card"><h3>🚜 ${esc(m)}</h3><table><tr><td>Income</td><td>${money(t.sales)}</td></tr><tr><td>Expenses</td><td>${money(t.expenses)}</td></tr><tr><th>Profit excl. VAT</th><th>${money(t.profit)}</th></tr></table><button class="soft full" onclick="renameMachine(${i})">Rename</button></div>`}).join('')}
 function renameMachine(i){let n=prompt('New machine name',machines[i]);if(!n||!n.trim())return;let o=machines[i];machines[i]=n.trim();tx.forEach(x=>{if(x.machine===o)x.machine=n.trim()});persist();renderMachines()}
@@ -566,7 +591,7 @@ function createInvoice(){
  let invNo=prefix+'-'+String(seq).padStart(4,'0');
  invoices.push({id:Date.now(),number:invNo,customer:invCustomer.value.trim(),customerVat:invCustomerVat.value.trim(),customerAddress:invCustomerAddress.value.trim(),date:invDate.value||new Date().toISOString().slice(0,10),due:invDue.value,desc:invDesc.value.trim(),items,net:n,vatRate:v,gross:g,paid:false});
  businessSettings.nextInvoice=seq+1;
- persist();[invCustomer,invCustomerVat,invCustomerAddress,invDesc].forEach(x=>x.value='');invCustomerSelect.value='';invItems.innerHTML='';addInvoiceItem();renderInvoices()
+ persist();[invCustomer,invCustomerVat,invCustomerAddress,invDesc].forEach(x=>x.value='');invCustomerSelect.value='';invItems.innerHTML='';addInvoiceItem();renderInvoices();alert('Invoice '+invNo+' saved successfully.')
 }
 function renderInvoices(){
  invoiceList.innerHTML=invoices.slice().reverse().map(i=>{
@@ -621,10 +646,30 @@ function saveBusinessSettings(){
  persist();alert('Invoice and banking details saved.');
 }
 
+
+function approxLocalStorageBytes(){
+ let total=0;
+ for(let i=0;i<localStorage.length;i++){
+   let k=localStorage.key(i),v=localStorage.getItem(k)||'';
+   total+=(k.length+v.length)*2;
+ }
+ return total;
+}
+function checkStorageHealth(){
+ let bytes=approxLocalStorageBytes(),mb=bytes/1024/1024;
+ let el=document.getElementById('storageHealthResult');
+ if(el)el.textContent='Approximate app storage: '+mb.toFixed(2)+' MB. iPhone/Safari local storage is limited, and photos can fill it quickly.';
+}
+function removeImportedInvoicePhotos(){
+ if(!confirm('Remove only the saved photos from imported invoices? The invoice numbers, customers, totals and VAT will remain.'))return;
+ externalInvoices.forEach(i=>{i.photos=[]});
+ persist();renderExternalInvoices();alert('Imported invoice photos removed. Invoice records were kept.')
+}
+
 function saveSettings(){settings.age=age.value;settings.other=+otherIncome.value||0;persist();alert('Settings saved.')}
 function download(data,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
 function exportCSV(){let H=['Date','Type','Party','Description','Area','Machine','Category','Reference','Amount','VAT Treatment','Gross','Net','VAT','Claim Input VAT','Payment Status','Notes'];let R=tx.map(x=>{let p=parts(x.amount,x.vat);return[x.date,x.type,x.party,x.desc,x.area,x.machine,x.cat,x.ref,x.amount,x.vat,p.gross,p.net,p.vat,x.claim?'Yes':'No',x.paid,x.notes]});download([H,...R].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),'cocos-transactions.csv','text/csv')}
-function backup(){download(JSON.stringify({version:8,tx,machines,settings,invoices,customers,quotes,partsList,businessSettings},null,2),'cocos-backup-v3.json','application/json')}
+function backup(){download(JSON.stringify({version:12,tx,machines,settings,invoices,customers,quotes,partsList,externalInvoices,businessSettings},null,2),'cocos-backup-v12-6.json','application/json')}
 function restoreData(){let f=restore.files[0];if(!f)return alert('Choose a backup file.');let r=new FileReader();r.onload=()=>{try{let b=JSON.parse(r.result);if(!Array.isArray(b.tx))throw 0;if(confirm('Replace current data with this backup?')){tx=b.tx;machines=b.machines||machines;settings=b.settings||settings;invoices=b.invoices||[];customers=b.customers||customers;quotes=b.quotes||[];partsList=b.partsList||[];externalInvoices=b.externalInvoices||[];businessSettings=b.businessSettings||businessSettings;persist();show('home')}}catch(e){alert('Invalid backup file.')}};r.readAsText(f)}
 partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
 date.value=new Date().toISOString().slice(0,10);invDate.value=new Date().toISOString().slice(0,10);invDue.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);qDate.value=new Date().toISOString().slice(0,10);qValid.value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);fillYears();persist();renderHome();
