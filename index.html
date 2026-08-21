@@ -46,7 +46,7 @@ window.COCOS_BUSINESS = {
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.3</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
+<header><h1>🚜 Coco's Plant Hire <span style="font-size:12px;color:#94a3b8">v12.4</span></h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
 <div class="wrap">
 
 <section id="home" class="screen active">
@@ -111,7 +111,7 @@ window.COCOS_BUSINESS = {
 <p class="muted">Upload one or more photos/screenshots of an invoice you created elsewhere.</p>
 <div class="row"><div><label>Invoice number</label><input id="extNumber" placeholder="e.g. INV-1234"></div><div><label>Invoice date</label><input id="extDate" type="date"></div></div>
 <label>Customer</label><input id="extCustomer" placeholder="Customer name">
-<div class="row"><div><label>Total incl. VAT</label><input id="extTotal" type="number" step="0.01"></div><div><label>VAT amount</label><input id="extVat" type="number" step="0.01"></div></div>
+<div class="row"><div><label>Total incl. VAT</label><input id="extTotal" type="number" step="0.01" inputmode="decimal"></div><div><label>VAT amount</label><input id="extVat" type="number" step="0.01" inputmode="decimal"></div></div>
 <label>Business area</label><select id="extArea"><option>Plant Hire</option><option>Laser Cutting</option><option>Agricultural Parts</option><option>Other</option></select>
 <label>Notes</label><input id="extNotes" placeholder="Optional">
 <label>Invoice photo(s)</label>
@@ -157,7 +157,7 @@ window.COCOS_BUSINESS = {
 <h3>Add / edit part</h3>
 <input id="partId" type="hidden">
 <label>Part name</label><input id="partName" placeholder="e.g. Planter bracket">
-<div class="row"><div><label>Part code / SKU</label><input id="partCode" placeholder="Optional"></div><div><label>Unit price excl. VAT</label><input id="partPrice" type="number" step="0.01"></div></div>
+<div class="row"><div><label>Part code / SKU</label><input id="partCode" placeholder="Optional"></div><div><label>Unit price excl. VAT</label><input id="partPrice" type="number" step="0.01" inputmode="decimal"></div></div>
 <label>Description</label><textarea id="partDesc" placeholder="Optional notes / dimensions"></textarea>
 <label>Part photo</label>
 <div class="actions">
@@ -183,7 +183,7 @@ window.COCOS_BUSINESS = {
 </section>
 
 <section id="more" class="screen"><h2>More</h2><div class="card"><h3>Tax settings</h3><label>Age band</label><select id="age"><option value="u65">Under 65</option><option value="65">65–74</option><option value="75">75+</option></select>
-<label>Other taxable income for the year</label><input id="otherIncome" type="number" step="0.01"><button class="primary full" onclick="saveSettings()">Save Settings</button></div>
+<label>Other taxable income for the year</label><input id="otherIncome" type="number" step="0.01" inputmode="decimal"><button class="primary full" onclick="saveSettings()">Save Settings</button></div>
 
 <div class="card"><h3>Invoice & banking details</h3>
 <label>Owner / proprietor name</label><input id="sOwnerName" placeholder="e.g. Rico Wentworth">
@@ -220,7 +220,7 @@ function fy(date){let d=new Date(date+'T00:00:00'),y=d.getFullYear(),m=d.getMont
 function fyLabel(y){return `${y-1}/${String(y).slice(-2)}`}
 function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.add(fy(x.date)));set.add(fy(new Date().toISOString().slice(0,10)));return [...set].sort((a,b)=>b-a)}
 function fillYears(){let opts='<option value="">All years</option>'+years().map(y=>`<option value="${y}">${fyLabel(y)}</option>`).join('');fYear.innerHTML=opts;rYear.innerHTML=opts}
-function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();renderExternalInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
+function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();renderExternalInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=Number(settings.other||0).toFixed(2);loadBusinessSettings()}scrollTo(0,0)}
 function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
 ['partGallery','partCamera'].forEach(id=>{
  const inp=document.getElementById(id);
@@ -238,7 +238,7 @@ function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='inc
 extDate.value=new Date().toISOString().slice(0,10);date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
-async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter a description and amount.');return}let ph='';let rf=(receiptGallery.files&&receiptGallery.files[0])||(receiptCamera.files&&receiptCamera.files[0]);try{ph=await compressPhoto(rf)}catch(e){}tx.push({id:Date.now(),type:type.value,date:date.value||new Date().toISOString().slice(0,10),party:party.value.trim(),desc:desc.value.trim(),area:area.value,machine:machine.value,cat:cat.value,ref:ref.value.trim(),amount:+amount.value,vat:vatMode.value,claim:type.value==='expense'&&claim.checked,paid:paid.value,notes:notes.value.trim(),photo:ph});persist();[party,desc,ref,amount,notes].forEach(x=>x.value='');receiptGallery.value='';receiptCamera.value='';show('home')}
+async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter a description and amount.');return}let ph='';let rf=(receiptGallery.files&&receiptGallery.files[0])||(receiptCamera.files&&receiptCamera.files[0]);try{ph=await compressPhoto(rf)}catch(e){}tx.push({id:Date.now(),type:type.value,date:date.value||new Date().toISOString().slice(0,10),party:party.value.trim(),desc:desc.value.trim(),area:area.value,machine:machine.value,cat:cat.value,ref:ref.value.trim(),amount:Math.round((+amount.value||0)*100)/100,vat:vatMode.value,claim:type.value==='expense'&&claim.checked,paid:paid.value,notes:notes.value.trim(),photo:ph});persist();[party,desc,ref,amount,notes].forEach(x=>x.value='');receiptGallery.value='';receiptCamera.value='';show('home')}
 function totals(fn=()=>true){let r={sales:0,expenses:0,out:0,input:0,netSales:0,netExpenses:0};tx.filter(fn).forEach(x=>{let p=parts(x.amount,x.vat);if(x.type==='income'){r.sales+=p.gross;r.netSales+=p.net;r.out+=p.vat}else{r.expenses+=p.gross;r.netExpenses+=p.net;if(x.claim)r.input+=p.vat}});r.profit=r.netSales-r.netExpenses;r.vat=r.out-r.input;return r}
 function grossTax(p){if(p<=245100)return p*.18;if(p<=383100)return 44118+(p-245100)*.26;if(p<=530200)return 79998+(p-383100)*.31;if(p<=695800)return 125599+(p-530200)*.36;if(p<=887000)return 185215+(p-695800)*.39;if(p<=1878600)return 259783+(p-887000)*.41;return 666339+(p-1878600)*.45}
 function taxEst(p){let t=Math.max(0,p+(+settings.other||0)),reb=17820;if(settings.age==='65')reb+=9765;if(settings.age==='75')reb+=13014;return Math.max(0,grossTax(t)-reb)}
@@ -287,7 +287,7 @@ async function savePart(){
  let id=partId.value?+partId.value:Date.now();
  let existing=partsList.find(x=>x.id===id),photoData=existing?.photo||'';
  let pf=(partGallery.files&&partGallery.files[0])||(partCamera.files&&partCamera.files[0]);if(pf){try{photoData=await compressPhoto(pf)}catch(e){}}
- let obj={id,name,code:partCode.value.trim(),price:+partPrice.value||0,desc:partDesc.value.trim(),photo:photoData};
+ let obj={id,name,code:partCode.value.trim(),price:Math.round((+partPrice.value||0)*100)/100,desc:partDesc.value.trim(),photo:photoData};
  if(existing)Object.assign(existing,obj);else partsList.push(obj);
  persist();clearPartForm();renderParts();
 }
@@ -296,7 +296,7 @@ function clearPartForm(){
 }
 function editPart(id){
  let p=partsList.find(x=>x.id===id);if(!p)return;
- partId.value=p.id;partName.value=p.name;partCode.value=p.code||'';partPrice.value=p.price||0;partDesc.value=p.desc||'';
+ partId.value=p.id;partName.value=p.name;partCode.value=p.code||'';partPrice.value=Number(p.price||0).toFixed(2);partDesc.value=p.desc||'';
  if(p.photo){partPreview.src=p.photo;partPreview.classList.remove('hidden')}else{partPreview.src='';partPreview.classList.add('hidden')}
  scrollTo(0,0)
 }
@@ -321,7 +321,7 @@ function addInvoiceItem(item={part:'',qty:1,unit:0}){
  let row=document.createElement('div');row.className='itemrow';
  row.innerHTML=`<div class="part"><label>Part / item name</label><input class="iiPart" value="${esc(item.part||'')}" placeholder="e.g. Slat"><button type="button" class="soft" style="margin-top:6px;width:100%" onclick="pickPartForRow(this,'invoice')">Choose from Part List</button></div>
  <div><label>Qty</label><input class="iiQty" type="number" step="0.01" min="0" value="${item.qty??1}"></div>
- <div><label>Unit price excl.</label><input class="iiUnit" type="number" step="0.01" min="0" value="${item.unit??0}"></div>
+ <div><label>Unit price excl.</label><input class="iiUnit" type="number" step="0.01" min="0" inputmode="decimal" value="${Number(item.unit??0).toFixed(2)}"></div>
  <div><button type="button" onclick="this.closest('.itemrow').remove()">×</button></div>`;
  invItems.appendChild(row);
 }
@@ -329,7 +329,7 @@ function getInvoiceItems(){
  return [...invItems.querySelectorAll('.itemrow')].map(r=>({
    part:r.querySelector('.iiPart').value.trim(),
    qty:+r.querySelector('.iiQty').value||0,
-   unit:+r.querySelector('.iiUnit').value||0
+   unit:Math.round((+r.querySelector('.iiUnit').value||0)*100)/100
  })).filter(x=>x.part&&x.qty>0);
 }
 
@@ -338,7 +338,7 @@ function addQuoteItem(item={part:'',qty:1,unit:0}){
  let row=document.createElement('div');row.className='itemrow';
  row.innerHTML=`<div class="part"><label>Part / item name</label><input class="qiPart" value="${esc(item.part||'')}" placeholder="e.g. Slat"><button type="button" class="soft" style="margin-top:6px;width:100%" onclick="pickPartForRow(this,'quote')">Choose from Part List</button></div>
  <div><label>Qty</label><input class="qiQty" type="number" step="0.01" min="0" value="${item.qty??1}"></div>
- <div><label>Unit price excl.</label><input class="qiUnit" type="number" step="0.01" min="0" value="${item.unit??0}"></div>
+ <div><label>Unit price excl.</label><input class="qiUnit" type="number" step="0.01" min="0" inputmode="decimal" value="${Number(item.unit??0).toFixed(2)}"></div>
  <div><button type="button" onclick="this.closest('.itemrow').remove()">×</button></div>`;
  qItems.appendChild(row);
 }
@@ -346,7 +346,7 @@ function getQuoteItems(){
  return [...qItems.querySelectorAll('.itemrow')].map(r=>({
    part:r.querySelector('.qiPart').value.trim(),
    qty:+r.querySelector('.qiQty').value||0,
-   unit:+r.querySelector('.qiUnit').value||0
+   unit:Math.round((+r.querySelector('.qiUnit').value||0)*100)/100
  })).filter(x=>x.part&&x.qty>0);
 }
 function createQuote(){
@@ -520,14 +520,21 @@ async function scanExternalInvoice(){
 function saveExternalInvoice(){
  if(!extNumber.value.trim()&&!extCustomer.value.trim())return alert('Enter an invoice number or customer.');
  if(!extPendingPhotos.length)return alert('Choose at least one invoice photo.');
- let total=+extTotal.value||0,vat=+extVat.value||0;
+ let total=Math.round((+extTotal.value||0)*100)/100,vat=Math.round((+extVat.value||0)*100)/100;
  let obj={id:Date.now(),number:extNumber.value.trim(),date:extDate.value||new Date().toISOString().slice(0,10),customer:extCustomer.value.trim(),total,vat,area:extArea.value,notes:extNotes.value.trim(),photos:[...extPendingPhotos],posted:false};
  externalInvoices.push(obj);persist();
  [extNumber,extCustomer,extTotal,extVat,extNotes].forEach(x=>x.value='');extGallery.value='';extCamera.value='';extPendingPhotos=[];extPendingFiles=[];renderExternalPreview();extOcrStatus.textContent='';extOcrText.value='';extOcrDetails.classList.add('hidden');renderExternalInvoices();
 }
 function renderExternalInvoices(){
  if(!window.externalInvoiceList)return;
- externalInvoiceList.innerHTML=externalInvoices.slice().reverse().map(i=>`<div class="invoice"><strong>${esc(i.number||'Imported invoice')} — ${esc(i.customer||'')}</strong><div class="muted">${esc(i.date)} · ${esc(i.area)}${i.posted?' · Added to income':''}</div><div class="extthumbs">${(i.photos||[]).map((p,idx)=>`<img src="${p}" onclick="viewExternalPhoto(${i.id},${idx})">`).join('')}</div><table><tr><td>Total incl. VAT</td><td>${money(i.total)}</td></tr><tr><td>VAT</td><td>${money(i.vat)}</td></tr></table><div class="actions"><button class="soft" onclick="viewExternalInvoice(${i.id})">View</button><button class="${i.posted?'soft':'income'}" onclick="postExternalInvoice(${i.id})">${i.posted?'Added to income':'Add to Income'}</button></div></div>`).join('')||'<p class="muted">No imported invoices yet.</p>';
+ externalInvoiceList.innerHTML=externalInvoices.slice().reverse().map(i=>`<div class="invoice"><strong>${esc(i.number||'Imported invoice')} — ${esc(i.customer||'')}</strong><div class="muted">${esc(i.date)} · ${esc(i.area)}${i.posted?' · Added to income':''}</div><div class="extthumbs">${(i.photos||[]).map((p,idx)=>`<img src="${p}" onclick="viewExternalPhoto(${i.id},${idx})">`).join('')}</div><table><tr><td>Total incl. VAT</td><td>${money(i.total)}</td></tr><tr><td>VAT</td><td>${money(i.vat)}</td></tr></table><div class="actions"><button class="soft" onclick="viewExternalInvoice(${i.id})">View</button><button class="${i.posted?'soft':'income'}" onclick="postExternalInvoice(${i.id})">${i.posted?'Added to income':'Add to Income'}</button></div><button class="expense full" style="margin-top:8px" onclick="deleteExternalInvoice(${i.id})">🗑 Delete Imported Invoice</button></div>`).join('')||'<p class="muted">No imported invoices yet.</p>';
+}
+function deleteExternalInvoice(id){
+ let i=externalInvoices.find(x=>x.id===id);if(!i)return;
+ if(confirm(`Delete imported invoice ${i.number||''}? This cannot be undone.`)){
+   externalInvoices=externalInvoices.filter(x=>x.id!==id);
+   persist();renderExternalInvoices();
+ }
 }
 function viewExternalPhoto(id,idx){
  let i=externalInvoices.find(x=>x.id===id);if(!i||!i.photos[idx])return;let w=window.open('','_blank');w.document.write(`<meta name="viewport" content="width=device-width"><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${i.photos[idx]}">`)
@@ -557,8 +564,15 @@ function createInvoice(){
 function renderInvoices(){
  invoiceList.innerHTML=invoices.slice().reverse().map(i=>{
    let itemSummary=(i.items&&i.items.length)?i.items.map(x=>`${esc(x.part)} × ${x.qty}`).join(', '):esc(i.desc||'');
-   return `<div class="card invoice"><strong>${esc(i.number)} — ${esc(i.customer)}</strong><div class="muted">${esc(i.date)}${i.due?' · Due '+esc(i.due):''}</div><div class="muted">${i.customerVat?'VAT '+esc(i.customerVat):''}${i.customerAddress?' · '+esc(i.customerAddress):''}</div><p>${itemSummary}</p><table><tr><td>Net</td><td>${money(i.net)}</td></tr><tr><td>VAT</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(i.gross)}</th></tr></table><div class="actions"><button class="soft" onclick="printInvoice(${i.id})">Print / PDF</button><button class="${i.paid?'soft':'income'}" onclick="toggleInvoice(${i.id})">${i.paid?'Mark unpaid':'Mark paid'}</button></div></div>`
+   return `<div class="card invoice"><strong>${esc(i.number)} — ${esc(i.customer)}</strong><div class="muted">${esc(i.date)}${i.due?' · Due '+esc(i.due):''}</div><div class="muted">${i.customerVat?'VAT '+esc(i.customerVat):''}${i.customerAddress?' · '+esc(i.customerAddress):''}</div><p>${itemSummary}</p><table><tr><td>Net</td><td>${money(i.net)}</td></tr><tr><td>VAT</td><td>${money(i.net*i.vatRate/100)}</td></tr><tr><th>Total</th><th>${money(i.gross)}</th></tr></table><div class="actions"><button class="soft" onclick="printInvoice(${i.id})">Print / PDF</button><button class="${i.paid?'soft':'income'}" onclick="toggleInvoice(${i.id})">${i.paid?'Mark unpaid':'Mark paid'}</button></div><button class="expense full" style="margin-top:8px" onclick="deleteInvoice(${i.id})">🗑 Delete Invoice</button></div>`
  }).join('')||'<div class="card"><p class="muted">No invoices yet.</p></div>'
+}
+function deleteInvoice(id){
+ let i=invoices.find(x=>x.id===id);if(!i)return;
+ if(confirm(`Delete invoice ${i.number||''}? This cannot be undone.`)){
+   invoices=invoices.filter(x=>x.id!==id);
+   persist();renderInvoices();
+ }
 }
 function toggleInvoice(id){let i=invoices.find(x=>x.id===id);if(i){i.paid=!i.paid;persist();renderInvoices()}}
 function printInvoice(id){
