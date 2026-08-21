@@ -43,6 +43,7 @@ window.COCOS_BUSINESS = {
 };
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <header><h1>🚜 Coco's Plant Hire</h1><p>Plant hire • Laser cutting • Agricultural parts</p></header>
@@ -121,6 +122,9 @@ window.COCOS_BUSINESS = {
 <input id="extGallery" type="file" accept="image/*,.heic,.heif" multiple style="display:none">
 <input id="extCamera" type="file" accept="image/*" capture="environment" style="display:none">
 <div id="extPreview"></div>
+<button type="button" class="soft full" onclick="scanExternalInvoice()">🔎 Scan photo & fill invoice details</button>
+<div id="extOcrStatus" class="muted" style="margin:8px 0"></div>
+<details id="extOcrDetails" class="hidden"><summary>View recognised text</summary><textarea id="extOcrText" readonly style="min-height:140px"></textarea></details>
 <button class="primary full" onclick="saveExternalInvoice()">Save Imported Invoice</button>
 </div>
 <div class="card"><h3>Imported invoices</h3><div id="externalInvoiceList"></div></div>
@@ -372,13 +376,105 @@ function renderExternalPreview(){
  extPreview.innerHTML=extPendingPhotos.length?`<div class="extthumbs">${extPendingPhotos.map((x,i)=>`<div><img src="${x}"><button type="button" class="expense" style="width:92px;margin-top:4px;padding:7px" onclick="removeExternalPreview(${i})">Remove</button></div>`).join('')}</div>`:'<p class="muted">No photos selected.</p>';
 }
 function removeExternalPreview(i){extPendingPhotos.splice(i,1);renderExternalPreview()}
+
+function normaliseOCRText(t){
+ return String(t||'').replace(/\r/g,'').replace(/[|]/g,'I').replace(/[ \t]+/g,' ').trim();
+}
+function parseMoney(s){
+ if(!s)return 0;
+ let x=String(s).replace(/[^\d,.\-]/g,'').trim();
+ if(x.includes(',') && x.includes('.')){
+   if(x.lastIndexOf(',')>x.lastIndexOf('.')) x=x.replace(/\./g,'').replace(',','.');
+   else x=x.replace(/,/g,'');
+ } else if(x.includes(',')) x=x.replace(',','.');
+ return parseFloat(x)||0;
+}
+function parseOCRInvoice(text){
+ let t=normaliseOCRText(text), lines=t.split('\n').map(x=>x.trim()).filter(Boolean);
+ let out={number:'',date:'',customer:'',total:0,vat:0};
+
+ let numberPatterns=[
+   /(?:tax\s*)?invoice\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9\-\/]+)/i,
+   /\binv(?:oice)?\s*#?\s*[:\-]?\s*([A-Z0-9\-\/]+)/i
+ ];
+ for(let p of numberPatterns){let m=t.match(p);if(m){out.number=m[1].trim();break}}
+
+ let datePatterns=[
+   /(?:invoice\s*)?date\s*[:\-]?\s*(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/i,
+   /(?:invoice\s*)?date\s*[:\-]?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+ ];
+ for(let p of datePatterns){
+   let m=t.match(p);if(m){
+     let d=m[1].replace(/\//g,'-'), parts=d.split('-');
+     if(parts[0].length===4) out.date=[parts[0],parts[1].padStart(2,'0'),parts[2].padStart(2,'0')].join('-');
+     else {
+       let y=parts[2].length===2?'20'+parts[2]:parts[2];
+       out.date=[y,parts[1].padStart(2,'0'),parts[0].padStart(2,'0')].join('-');
+     }
+     break
+   }
+ }
+
+ let totalPatterns=[
+   /(?:total\s*(?:incl\.?\s*vat|including\s*vat)|amount\s*due|invoice\s*total|grand\s*total|total)\s*[:\-]?\s*(?:R|ZAR)?\s*([\d\s.,]+)/ig
+ ];
+ let totals=[];
+ for(let p of totalPatterns){for(let m of t.matchAll(p)){let v=parseMoney(m[1]);if(v>0)totals.push(v)}}
+ if(totals.length) out.total=Math.max(...totals);
+
+ let vatPatterns=[
+   /(?:vat(?:\s*15%|\s*amount)?|tax)\s*[:\-]?\s*(?:R|ZAR)?\s*([\d\s.,]+)/ig
+ ];
+ let vats=[];
+ for(let p of vatPatterns){for(let m of t.matchAll(p)){let v=parseMoney(m[1]);if(v>0)vats.push(v)}}
+ if(vats.length) out.vat=Math.min(...vats.filter(v=>!out.total || v<out.total) || vats);
+
+ for(let i=0;i<lines.length;i++){
+   if(/^(bill\s*to|customer|sold\s*to)\b/i.test(lines[i])){
+     let same=lines[i].replace(/^(bill\s*to|customer|sold\s*to)\s*[:\-]?\s*/i,'').trim();
+     if(same) out.customer=same;
+     else if(lines[i+1]) out.customer=lines[i+1];
+     break
+   }
+ }
+ return out;
+}
+async function scanExternalInvoice(){
+ if(!extPendingPhotos.length)return alert('Choose at least one invoice photo first.');
+ if(!window.Tesseract)return alert('The invoice scanner could not load. Check your internet connection and try again.');
+ extOcrStatus.textContent='Reading invoice photo… this can take 10–30 seconds.';
+ extOcrDetails.classList.add('hidden');
+ try{
+   let result=await Tesseract.recognize(extPendingPhotos[0],'eng',{
+     logger:m=>{
+       if(m.status==='recognizing text' && typeof m.progress==='number'){
+         extOcrStatus.textContent='Reading invoice photo… '+Math.round(m.progress*100)+'%';
+       }
+     }
+   });
+   let text=result?.data?.text||'';
+   extOcrText.value=text;
+   extOcrDetails.classList.remove('hidden');
+   let d=parseOCRInvoice(text);
+   if(d.number)extNumber.value=d.number;
+   if(d.date)extDate.value=d.date;
+   if(d.customer)extCustomer.value=d.customer;
+   if(d.total)extTotal.value=d.total.toFixed(2);
+   if(d.vat)extVat.value=d.vat.toFixed(2);
+   extOcrStatus.textContent='Scan complete. Please check the filled details before saving.';
+ }catch(e){
+   console.error(e);
+   extOcrStatus.textContent='Could not read this photo. Try a clearer, straight-on image with good lighting.';
+ }
+}
+
 function saveExternalInvoice(){
  if(!extNumber.value.trim()&&!extCustomer.value.trim())return alert('Enter an invoice number or customer.');
  if(!extPendingPhotos.length)return alert('Choose at least one invoice photo.');
  let total=+extTotal.value||0,vat=+extVat.value||0;
  let obj={id:Date.now(),number:extNumber.value.trim(),date:extDate.value||new Date().toISOString().slice(0,10),customer:extCustomer.value.trim(),total,vat,area:extArea.value,notes:extNotes.value.trim(),photos:[...extPendingPhotos],posted:false};
  externalInvoices.push(obj);persist();
- [extNumber,extCustomer,extTotal,extVat,extNotes].forEach(x=>x.value='');extGallery.value='';extCamera.value='';extPendingPhotos=[];renderExternalPreview();renderExternalInvoices();
+ [extNumber,extCustomer,extTotal,extVat,extNotes].forEach(x=>x.value='');extGallery.value='';extCamera.value='';extPendingPhotos=[];renderExternalPreview();extOcrStatus.textContent='';extOcrText.value='';extOcrDetails.classList.add('hidden');renderExternalInvoices();
 }
 function renderExternalInvoices(){
  if(!window.externalInvoiceList)return;
