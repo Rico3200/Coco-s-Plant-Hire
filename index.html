@@ -71,7 +71,13 @@ window.COCOS_BUSINESS = {
 <div id="claimWrap"><label><input id="claim" type="checkbox" checked style="width:auto"> Claim input VAT on this expense</label></div>
 <label>Payment status</label><select id="paid"><option value="paid">Paid</option><option value="unpaid">Unpaid / outstanding</option></select>
 <label>Notes</label><textarea id="notes"></textarea>
-<label>Receipt / invoice photo</label><input id="photo" type="file" accept="image/*">
+<label>Receipt / invoice photo</label>
+<div class="actions">
+  <button type="button" class="soft" onclick="document.getElementById('receiptGallery').click()">🖼 Photo Library</button>
+  <button type="button" class="soft" onclick="document.getElementById('receiptCamera').click()">📷 Camera</button>
+</div>
+<input id="receiptGallery" type="file" accept="image/*,.heic,.heif" style="display:none">
+<input id="receiptCamera" type="file" accept="image/*" capture="environment" style="display:none">
 <p class="muted">The app compresses the photo and stores it locally on this iPhone/browser.</p>
 <button class="primary full" onclick="saveTx()">Save Transaction</button></div>
 </section>
@@ -124,7 +130,13 @@ window.COCOS_BUSINESS = {
 <label>Part name</label><input id="partName" placeholder="e.g. Planter bracket">
 <div class="row"><div><label>Part code / SKU</label><input id="partCode" placeholder="Optional"></div><div><label>Unit price excl. VAT</label><input id="partPrice" type="number" step="0.01"></div></div>
 <label>Description</label><textarea id="partDesc" placeholder="Optional notes / dimensions"></textarea>
-<label>Part photo</label><input id="partPhoto" type="file" accept="image/*">
+<label>Part photo</label>
+<div class="actions">
+  <button type="button" class="soft" onclick="document.getElementById('partGallery').click()">🖼 Choose from Photo Library</button>
+  <button type="button" class="soft" onclick="document.getElementById('partCamera').click()">📷 Take Photo</button>
+</div>
+<input id="partGallery" type="file" accept="image/*,.heic,.heif" style="display:none">
+<input id="partCamera" type="file" accept="image/*" capture="environment" style="display:none">
 <img id="partPreview" class="receipt hidden">
 <div class="actions"><button class="primary" onclick="savePart()">Save Part</button><button class="soft" onclick="clearPartForm()">Clear</button></div>
 </div>
@@ -181,10 +193,11 @@ function years(){let set=new Set(tx.map(x=>fy(x.date)));invoices.forEach(x=>set.
 function fillYears(){let opts='<option value="">All years</option>'+years().map(y=>`<option value="${y}">${fyLabel(y)}</option>`).join('');fYear.innerHTML=opts;rYear.innerHTML=opts}
 function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');if(id==='home')renderHome();if(id==='machines')renderMachines();if(id==='records'){fillYears();renderRecords()}if(id==='invoices'){renderCustomers();renderInvoices();if(!invItems.children.length)addInvoiceItem();}if(id==='quotes'){renderQuotes();if(!qItems.children.length)addQuoteItem();populateQuoteCustomers();}if(id==='parts'){renderParts();}if(id==='reports'){fillYears();renderReports()}if(id==='more'){age.value=settings.age;otherIncome.value=settings.other||0;loadBusinessSettings()}scrollTo(0,0)}
 function openEntry(t){show('entry');type.value=t;entryTitle.textContent=t==='income'?'Add Income':'Add Expense';partPhoto?.addEventListener('change',async()=>{if(partPhoto.files[0]){try{partPreview.src=await compressPhoto(partPhoto.files[0]);partPreview.classList.remove('hidden')}catch(e){}}});
+[partGallery,partCamera].forEach(inp=>inp.addEventListener('change',async()=>{if(inp.files&&inp.files[0]){try{partPreview.src=await compressPhoto(inp.files[0]);partPreview.classList.remove('hidden')}catch(e){}}}));
 date.value=new Date().toISOString().slice(0,10);entryMode();machine.innerHTML='<option value="">Not machine-specific</option>'+machines.map(x=>`<option>${esc(x)}</option>`).join('')}
 function entryMode(){cat.innerHTML=(type.value==='income'?incCats:expCats).map(x=>`<option>${x}</option>`).join('');claimWrap.classList.toggle('hidden',type.value!=='expense')}
 async function compressPhoto(file){if(!file)return'';return new Promise((res,rej)=>{let r=new FileReader();r.onload=e=>{let im=new Image();im.onload=()=>{let max=1100,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.65))};im.onerror=rej;im.src=e.target.result};r.onerror=rej;r.readAsDataURL(file)})}
-async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter a description and amount.');return}let ph='';try{ph=await compressPhoto(photo.files[0])}catch(e){}tx.push({id:Date.now(),type:type.value,date:date.value||new Date().toISOString().slice(0,10),party:party.value.trim(),desc:desc.value.trim(),area:area.value,machine:machine.value,cat:cat.value,ref:ref.value.trim(),amount:+amount.value,vat:vatMode.value,claim:type.value==='expense'&&claim.checked,paid:paid.value,notes:notes.value.trim(),photo:ph});persist();[party,desc,ref,amount,notes,photo].forEach(x=>x.value='');show('home')}
+async function saveTx(){if(!desc.value.trim()||!(+amount.value>0)){alert('Enter a description and amount.');return}let ph='';let rf=(receiptGallery.files&&receiptGallery.files[0])||(receiptCamera.files&&receiptCamera.files[0]);try{ph=await compressPhoto(rf)}catch(e){}tx.push({id:Date.now(),type:type.value,date:date.value||new Date().toISOString().slice(0,10),party:party.value.trim(),desc:desc.value.trim(),area:area.value,machine:machine.value,cat:cat.value,ref:ref.value.trim(),amount:+amount.value,vat:vatMode.value,claim:type.value==='expense'&&claim.checked,paid:paid.value,notes:notes.value.trim(),photo:ph});persist();[party,desc,ref,amount,notes].forEach(x=>x.value='');receiptGallery.value='';receiptCamera.value='';show('home')}
 function totals(fn=()=>true){let r={sales:0,expenses:0,out:0,input:0,netSales:0,netExpenses:0};tx.filter(fn).forEach(x=>{let p=parts(x.amount,x.vat);if(x.type==='income'){r.sales+=p.gross;r.netSales+=p.net;r.out+=p.vat}else{r.expenses+=p.gross;r.netExpenses+=p.net;if(x.claim)r.input+=p.vat}});r.profit=r.netSales-r.netExpenses;r.vat=r.out-r.input;return r}
 function grossTax(p){if(p<=245100)return p*.18;if(p<=383100)return 44118+(p-245100)*.26;if(p<=530200)return 79998+(p-383100)*.31;if(p<=695800)return 125599+(p-530200)*.36;if(p<=887000)return 185215+(p-695800)*.39;if(p<=1878600)return 259783+(p-887000)*.41;return 666339+(p-1878600)*.45}
 function taxEst(p){let t=Math.max(0,p+(+settings.other||0)),reb=17820;if(settings.age==='65')reb+=9765;if(settings.age==='75')reb+=13014;return Math.max(0,grossTax(t)-reb)}
@@ -232,13 +245,13 @@ async function savePart(){
  let name=partName.value.trim();if(!name)return alert('Enter a part name.');
  let id=partId.value?+partId.value:Date.now();
  let existing=partsList.find(x=>x.id===id),photoData=existing?.photo||'';
- if(partPhoto.files[0]){try{photoData=await compressPhoto(partPhoto.files[0])}catch(e){}}
+ let pf=(partGallery.files&&partGallery.files[0])||(partCamera.files&&partCamera.files[0]);if(pf){try{photoData=await compressPhoto(pf)}catch(e){}}
  let obj={id,name,code:partCode.value.trim(),price:+partPrice.value||0,desc:partDesc.value.trim(),photo:photoData};
  if(existing)Object.assign(existing,obj);else partsList.push(obj);
  persist();clearPartForm();renderParts();
 }
 function clearPartForm(){
- partId.value='';partName.value='';partCode.value='';partPrice.value='';partDesc.value='';partPhoto.value='';partPreview.src='';partPreview.classList.add('hidden');
+ partId.value='';partName.value='';partCode.value='';partPrice.value='';partDesc.value='';partGallery.value='';partCamera.value='';partPreview.src='';partPreview.classList.add('hidden');
 }
 function editPart(id){
  let p=partsList.find(x=>x.id===id);if(!p)return;
